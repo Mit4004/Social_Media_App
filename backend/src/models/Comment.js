@@ -1,23 +1,24 @@
 const mongoose = require("mongoose");
 
-const friendSchema = new mongoose.Schema(
+const commentSchema = new mongoose.Schema(
   {
-    user1: {
+    post: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
+      required: true,
+    },
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    user2: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+    text: {
+      type: String,
       required: true,
+      trim: true,
     },
-    closeFriend: {
-      type: Boolean,
-      default: false
-    }
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Friend", friendSchema);
+module.exports = mongoose.model("Comment", commentSchema);
