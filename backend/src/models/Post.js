@@ -11,10 +11,11 @@ const postSchema = new mongoose.Schema(
             type: String,
             default: "",
         },
-        images: [
+        media: [
             {
                 url: { type: String },
                 storageType: { type: String, default: "local" },
+                fileType: { type: String, enum: ["image", "video"], default: "image" },
             },
         ],
         likesCount: {
