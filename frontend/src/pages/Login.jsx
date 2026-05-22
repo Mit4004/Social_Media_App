@@ -10,6 +10,7 @@ import { loginUser } from '../api/auth.api'
 import Input from '../components/Input'
 import Button from '../components/Button'
 
+// Login page component that allows users to sign in using their email and password
 export const Login = () => {
   const { login } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -47,6 +48,7 @@ export const Login = () => {
     },
   })
 
+  // Handles form submit to trigger login mutation with credentials
   const onSubmit = (data) => {
     loginMutation.mutate(data)
   }

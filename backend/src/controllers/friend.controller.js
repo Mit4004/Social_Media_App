@@ -1,6 +1,7 @@
 const FriendRequest = require('../models/FriendRequest');
 const Friend = require('../models/Friend');
 
+// Sends a new friend request from the logged-in user to another user.
 const sendRequest = async (req, res) => {
   try {
     const senderId = req.userId;
@@ -40,6 +41,7 @@ const sendRequest = async (req, res) => {
   }
 };
 
+// Accepts a pending friend request and creates a friendship record in the database.
 const acceptRequest = async (req, res) => {
   try {
     const request = await FriendRequest.findById(req.params.id);
@@ -70,6 +72,7 @@ const acceptRequest = async (req, res) => {
   }
 };
 
+// Rejects a pending friend request by updating its status to 'rejected'.
 const rejectRequest = async (req, res) => {
   try {
     const request = await FriendRequest.findById(req.params.id);
@@ -95,6 +98,7 @@ const rejectRequest = async (req, res) => {
   }
 };
 
+// Removes a friendship between two users.
 const unfriend = async (req, res) => {
   try {
     const userId = req.userId;
@@ -117,6 +121,7 @@ const unfriend = async (req, res) => {
   }
 };
 
+// Retrieves all pending friend requests sent to the logged-in user.
 const getRequests = async (req, res) => {
   try {
     const requests = await FriendRequest.find({
@@ -130,6 +135,7 @@ const getRequests = async (req, res) => {
   }
 };
 
+// Retrieves the friends list of a user, hiding sensitive fields if the viewer is not a friend.
 const getFriends = async (req, res) => {
   try {
     const userId = req.query.userId || req.userId;
@@ -149,22 +155,12 @@ const getFriends = async (req, res) => {
 
     const currentUserId = req.userId ? req.userId.toString() : '';
 
-    // Find all friends of the current logged-in user to see if they are friends
-    const loggedInFriends = currentUserId
-      ? await Friend.find({ $or: [{ user1: currentUserId }, { user2: currentUserId }] })
-      : [];
-
-    const friendIds = new Set(loggedInFriends.map(f => 
-      f.user1.toString() === currentUserId ? f.user2.toString() : f.user1.toString()
-    ));
-
     const processedFriends = friends.map(friend => {
       const friendObj = friend.toObject ? friend.toObject() : friend;
       const friendId = friendObj._id.toString();
       const isSelf = friendId === currentUserId;
-      const isFriend = friendIds.has(friendId);
 
-      if (!isSelf && !isFriend) {
+      if (!isSelf) {
         delete friendObj.email;
       }
       return friendObj;

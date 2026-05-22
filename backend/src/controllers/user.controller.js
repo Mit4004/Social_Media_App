@@ -5,6 +5,7 @@ const Post = require('../models/Post')
 const Like = require('../models/Like')
 const Comment = require('../models/Comment')
 
+// Retrieves a paginated, sorted, and optionally filtered list of users (excluding password)
 const getUsers = async (req, res) => {
   try {
     const {
@@ -22,7 +23,6 @@ const getUsers = async (req, res) => {
           $or: [
             { firstName: { $regex: search, $options: 'i' } },
             { lastName:  { $regex: search, $options: 'i' } },
-            { email:     { $regex: search, $options: 'i' } },
           ],
         }
       : baseFilter
@@ -41,16 +41,10 @@ const getUsers = async (req, res) => {
     ])
 
     const currentUserId = req.userId ? req.userId.toString() : '';
-    const friends = currentUserId
-      ? await Friend.find({ $or: [{ user1: currentUserId }, { user2: currentUserId }] })
-      : [];
-    const friendIds = new Set(friends.map(f => 
-      f.user1.toString() === currentUserId ? f.user2.toString() : f.user1.toString()
-    ));
 
     const processedUsers = users.map(user => {
       const userObj = user.toObject();
-      if (userObj._id.toString() !== currentUserId && !friendIds.has(userObj._id.toString())) {
+      if (userObj._id.toString() !== currentUserId) {
         delete userObj.email;
       }
       return userObj;
@@ -70,6 +64,7 @@ const getUsers = async (req, res) => {
   }
 }
 
+// Retrieves details of a specific user by their ID
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password')
@@ -82,21 +77,8 @@ const getUserById = async (req, res) => {
     const targetUserId = user._id.toString();
     const isSelf = targetUserId === currentUserId;
 
-    let isFriend = false;
-    if (!isSelf && currentUserId) {
-      const friendship = await Friend.findOne({
-        $or: [
-          { user1: currentUserId, user2: targetUserId },
-          { user1: targetUserId, user2: currentUserId }
-        ]
-      });
-      if (friendship) {
-        isFriend = true;
-      }
-    }
-
     const userObj = user.toObject();
-    if (!isSelf && !isFriend) {
+    if (!isSelf) {
       delete userObj.email;
     }
 
@@ -115,6 +97,7 @@ const updateUserSchema = z.object({
   bio:       z.string().max(300).optional(),
 })
 
+// Updates user profile details after validating request data
 const updateUser = async (req, res) => {
   try {
     if (req.params.id !== req.userId.toString()) {
@@ -142,6 +125,7 @@ const updateUser = async (req, res) => {
   }
 }
 
+// Deletes a user profile and cascades deletion of all associated posts, friendships, and interactions
 const deleteUser = async (req, res) => {
   try {
     const userIdToDelete = req.params.id

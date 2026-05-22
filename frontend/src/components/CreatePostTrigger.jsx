@@ -8,6 +8,7 @@ import { createPost } from '../api/post.api'
 import Avatar from './Avatar'
 import Button from './Button'
 
+// Component providing a modal dialog to write and publish a new post
 export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -32,12 +33,14 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
     },
   })
 
+  // Clears post input states and closes the modal dialog
   const handleCloseModal = () => {
     if (postMutation.isPending) return
     setIsOpen(false)
     setContent('')
   }
 
+  // Submits the new post content to the server using react-query mutation
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!content.trim()) {

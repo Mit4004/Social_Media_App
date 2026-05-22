@@ -18,6 +18,7 @@ import { getUserPosts } from '../api/post.api'
 import { getFriendRequests, getFriendsList, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../api/friend.api'
 import formatDate from '../utils/formatDate'
  
+// Renders the User Profile Detail page displaying user biography, contacts, posts feed, friends list, and profile editing options
 export const UserDetail = () => {
   const { id: profileId } = useParams()
   const { user: currentUser, logout, updateProfile } = useAuth()
@@ -103,6 +104,7 @@ export const UserDetail = () => {
   }, [profileUser])
 
   // Determine friendship status: 'friends' | 'incoming_request' | 'outgoing_request' | 'none'
+  // Helper to determine friendship relationship state between logged-in user and profile user
   const getFriendshipState = () => {
     if (isOwnProfile) return 'self'
     
@@ -123,13 +125,6 @@ export const UserDetail = () => {
 
   const friendshipState = getFriendshipState()
 
-  const canSeeEmailOf = (targetUserId) => {
-    if (!currentUser) return false
-    const currentUserId = currentUser._id || currentUser.id
-    if (targetUserId === currentUserId) return true
-    if (isOwnProfile) return true
-    return loggedInFriends.some((f) => f._id === targetUserId)
-  }
 
   // Mutations
   // Send Friend Request Mutation
@@ -213,12 +208,14 @@ export const UserDetail = () => {
   })
 
   // Handle Photo Select
+  // Triggers click event on the hidden profile photo file input element
   const handlePhotoClick = () => {
     if (isOwnProfile && !uploadPhotoMutation.isPending) {
       fileInputRef.current?.click()
     }
   }
 
+  // Handles profile picture file selection and initiates file upload mutation
   const handleFileChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -259,6 +256,7 @@ export const UserDetail = () => {
     },
   })
 
+  // Validates and submits updated profile form details
   const handleEditSubmit = (e) => {
     e.preventDefault()
     const errors = {}
@@ -288,6 +286,7 @@ export const UserDetail = () => {
     },
   })
 
+  // Opens confirmation modal to delete the user profile permanently
   const handleDeleteProfile = () => {
     const confirmMsg = 'WARNING: Are you sure you want to permanently delete your profile? This will delete all your posts, friends list connections, comments, and likes. This action cannot be undone!'
     setConfirmModal({
@@ -525,12 +524,12 @@ export const UserDetail = () => {
 
                 {/* Grid details (Contact details) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 pt-4 border-t border-border/50 text-xs text-secondary">
-                  <div className="flex items-center gap-2.5 justify-center sm:justify-start">
-                    <Mail size={14} className="text-muted" />
-                    <span>
-                      {canSeeEmailOf(profileUser._id) ? profileUser.email : 'Email hidden'}
-                    </span>
-                  </div>
+                  {isOwnProfile && (
+                    <div className="flex items-center gap-2.5 justify-center sm:justify-start">
+                      <Mail size={14} className="text-muted" />
+                      <span>{profileUser.email}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2.5 justify-center sm:justify-start">
                     <Phone size={14} className="text-muted" />
                     <span>{profileUser.mobile || 'No phone added'}</span>
@@ -645,9 +644,6 @@ export const UserDetail = () => {
                           <h4 className="font-bold text-xs text-primary truncate group-hover:text-accent transition-colors">
                             {friendName}
                           </h4>
-                          <p className="text-[10px] text-secondary truncate mt-0.5">
-                            {canSeeEmailOf(friend._id) ? friend.email : 'Email hidden'}
-                          </p>
                         </div>
                       </Link>
                     )

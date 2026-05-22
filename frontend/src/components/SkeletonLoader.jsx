@@ -11,6 +11,7 @@ export const SkeletonLoader = ({
 }) => {
   const renders = Array.from({ length: count })
 
+  // Renders a skeleton layout for a single post
   const PostSkeleton = () => (
     <div className="w-full bg-card border border-border rounded-[16px] p-6 space-y-4 mb-4 animate-pulse">
       {/* Header */}
@@ -36,6 +37,7 @@ export const SkeletonLoader = ({
     </div>
   )
 
+  // Renders a skeleton layout for the sidebar
   const SidebarSkeleton = () => (
     <div className="w-[240px] bg-card border border-border rounded-[16px] p-6 space-y-6 animate-pulse">
       {/* User Info */}
@@ -53,6 +55,7 @@ export const SkeletonLoader = ({
     </div>
   )
 
+  // Renders a skeleton layout for a list of items (e.g. people or requests)
   const ListSkeleton = () => (
     <div className="w-full bg-card border border-border rounded-[16px] divide-y divide-border animate-pulse">
       {renders.map((_, idx) => (

@@ -8,6 +8,7 @@ const createPostSchema = z.object({
   visibility: z.enum(['public', 'friends', 'private']).optional().default('public'),
 })
 
+// Creates a new post with optional text content and media attachments
 const createPost = async (req, res) => {
   try {
     const parsed = createPostSchema.safeParse(req.body)
@@ -44,6 +45,7 @@ const createPost = async (req, res) => {
   }
 }
 
+// Retrieves a paginated list of posts created by a specific user
 const getUserPosts = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query
@@ -72,6 +74,7 @@ const getUserPosts = async (req, res) => {
   }
 }
 
+// Deletes a specific post after verifying authorship
 const deletePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -93,6 +96,7 @@ const deletePost = async (req, res) => {
 }
 
 
+// Retrieves a paginated timeline of posts from the user and their friends based on visibility settings
 const getTimeline = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query
@@ -140,6 +144,7 @@ const getTimeline = async (req, res) => {
   }
 }
 
+// Likes a post and increments its likes count
 const likePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -161,6 +166,7 @@ const likePost = async (req, res) => {
   }
 }
 
+// Unlikes a post and decrements its likes count
 const unlikePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)

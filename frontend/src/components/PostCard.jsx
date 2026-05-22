@@ -11,6 +11,7 @@ import formatDate from '../utils/formatDate'
 import Button from './Button'
 import ConfirmModal from './ConfirmModal'
 
+// Component displaying a single post card with user information, text contents, media attachments, likes, and comments functionality
 export const PostCard = ({ post }) => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -51,6 +52,7 @@ export const PostCard = ({ post }) => {
   const comments = commentsResponse?.comments || []
 
   // Resolve media asset absolute URL
+  // Resolves the absolute media server URL for attachments
   const getMediaUrl = (url) => {
     if (!url) return ''
     if (url.startsWith('http://') || url.startsWith('https://')) return url
@@ -79,6 +81,7 @@ export const PostCard = ({ post }) => {
     },
   })
 
+  // Toggles the like state of the post and performs API calls to sync state
   const handleLikeToggle = () => {
     const liked = JSON.parse(localStorage.getItem(likeKey) || '[]')
     if (isLiked) {
@@ -108,6 +111,7 @@ export const PostCard = ({ post }) => {
     },
   })
 
+  // Opens confirmation modal to permanently delete the current post
   const handleDeletePost = () => {
     setConfirmModal({
       isOpen: true,
@@ -137,6 +141,7 @@ export const PostCard = ({ post }) => {
     },
   })
 
+  // Submits a new comment on the current post and triggers refetching of comments
   const handleAddComment = (e) => {
     e.preventDefault()
     if (!commentText.trim()) return
@@ -157,6 +162,7 @@ export const PostCard = ({ post }) => {
     },
   })
 
+  // Opens confirmation modal to delete a specific comment on the post
   const handleDeleteComment = (commentId) => {
     setConfirmModal({
       isOpen: true,
@@ -173,6 +179,7 @@ export const PostCard = ({ post }) => {
   }
 
   // Render media attachments grid
+  // Renders a grid layout for post media files (images or video player)
   const renderMedia = () => {
     if (!post.media || post.media.length === 0) return null
 

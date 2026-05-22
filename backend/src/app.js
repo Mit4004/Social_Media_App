@@ -27,6 +27,7 @@ app.use("/friends", friendRoutes);
 app.use("/posts", postRoutes);
 app.use("/comments", commentRoutes);
 
+// Server health-check route handler returning basic server status.
 app.get("/", (req, res) => {
   res.json({message: "Server is running"})
 });

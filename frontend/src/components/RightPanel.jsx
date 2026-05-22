@@ -8,6 +8,7 @@ import { getUsers } from '../api/user.api'
 import { getFriendsList, sendFriendRequest } from '../api/friend.api'
 import Avatar from './Avatar'
 
+// Renders the right sidebar containing suggested users to follow and brief current user summary
 const RightPanel = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()

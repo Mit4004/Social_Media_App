@@ -8,6 +8,7 @@ const API = axios.create({
 })
 
 API.interceptors.request.use(
+  // Attaches the JWT session token to outgoing request headers if present in localStorage.
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
@@ -15,6 +16,7 @@ API.interceptors.request.use(
     }
     return config
   },
+  // Handles request configuration errors by rejecting the promise.
   (error) => {
     return Promise.reject(error)
   }

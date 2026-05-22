@@ -28,6 +28,7 @@ export const Avatar = ({
   }
 
   // Prepends server address if path is relative
+  // Prepends the API base URL to a relative image path
   const getFullImageUrl = (path) => {
     if (!path) return null
     
@@ -46,6 +47,7 @@ export const Avatar = ({
   const initials = getInitials(firstName, lastName)
 
   // Generate a deterministic HSL color based on the user's name
+  // Generates a deterministic HSL color code based on the user's name
   const getBackgroundColor = (name) => {
     let hash = 0
     for (let i = 0; i < name.length; i++) {

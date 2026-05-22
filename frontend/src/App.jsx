@@ -22,6 +22,7 @@ const queryClient = new QueryClient({
   },
 })
 
+// Main application component setup with routing and TanStack Query client providers
 function App() {
   return (
     <QueryClientProvider client={queryClient}>

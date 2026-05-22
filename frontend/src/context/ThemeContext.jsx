@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react'
 
 const ThemeContext = createContext()
 
+// Provides theme context (light/dark mode) and toggle functionality to the app
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('theme') || 'light'
@@ -12,6 +13,7 @@ export const ThemeProvider = ({ children }) => {
     document.documentElement.dataset.theme = theme
   }, [theme])
 
+  // Toggles the theme state between light and dark and updates localStorage
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
     setTheme(newTheme)
@@ -25,4 +27,5 @@ export const ThemeProvider = ({ children }) => {
   )
 }
 
+// Custom hook to consume the ThemeContext
 export const useTheme = () => useContext(ThemeContext)

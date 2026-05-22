@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import Avatar from './Avatar'
 
+// Sidebar component that renders the main navigation items, create post trigger, theme toggle, and logout button
 export const Sidebar = ({ onCreatePost }) => {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -14,6 +15,7 @@ export const Sidebar = ({ onCreatePost }) => {
 
   const profileUrl = `/user/${user._id || user.id}`
 
+  // Logs the user out and redirects to the login page
   const handleLogout = () => {
     logout()
     navigate('/login')

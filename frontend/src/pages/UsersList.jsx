@@ -14,6 +14,7 @@ import { getUsers, updateUser } from '../api/user.api'
 import { getFriendsList } from '../api/friend.api'
 import formatDate from '../utils/formatDate'
 
+// Renders the People Directory page listing all registered users and connections with sorting, searching, and pagination
 export const UsersList = () => {
   const { user: currentUser, logout, updateProfile } = useAuth()
   const queryClient = useQueryClient()
@@ -69,9 +70,8 @@ export const UsersList = () => {
   // Filter friends list locally by search term
   const filteredFriends = myFriendsList.filter((friend) => {
     const fullName = `${friend.firstName} ${friend.lastName}`.toLowerCase()
-    const email = (friend.email || '').toLowerCase()
     const term = debouncedSearch.toLowerCase()
-    return fullName.includes(term) || email.includes(term)
+    return fullName.includes(term)
   })
 
   // Sort friends list locally
@@ -112,6 +112,7 @@ export const UsersList = () => {
   const activeError = viewMode === 'all' ? error : null
 
   // Toggle sort field/direction
+  // Sorts the users list by field name toggling ascending/descending order
   const handleSort = (field) => {
     if (sortBy === field) {
       setOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
@@ -121,6 +122,7 @@ export const UsersList = () => {
     }
   }
   // Edit profile actions
+  // Opens the edit details modal and initializes fields with target user data
   const openEditModal = (user) => {
     setEditingUser(user)
     setEditForm({
@@ -155,6 +157,7 @@ export const UsersList = () => {
     },
   })
 
+  // Validates edit details form and triggers profile update mutation
   const handleEditSubmit = (e) => {
     e.preventDefault()
     // Simple frontend validations
@@ -243,7 +246,7 @@ export const UsersList = () => {
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
                 <input
                   type="text"
-                  placeholder="Search by name or email..."
+                  placeholder="Search by name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-input border border-border text-xs rounded-full focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 text-primary transition-colors"
@@ -320,11 +323,6 @@ export const UsersList = () => {
                                     </span>
                                   )}
                                 </span>
-                                {isSelf || isFriend ? (
-                                  <span className="text-[10px] text-secondary/70 mt-0.5">{u.email}</span>
-                                ) : (
-                                  <span className="text-[10px] text-muted/50 italic mt-0.5">Email hidden</span>
-                                )}
                               </div>
                             </div>
                           </td>

@@ -10,6 +10,7 @@ import SkeletonLoader from '../components/SkeletonLoader'
 import Button from '../components/Button'
 import { getFriendRequests, acceptFriendRequest, rejectFriendRequest } from '../api/friend.api'
 
+// Renders the Friend Requests page where users can view, accept, or decline pending connection requests
 export const FriendRequests = () => {
   const queryClient = useQueryClient()
 

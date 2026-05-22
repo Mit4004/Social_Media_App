@@ -2,6 +2,7 @@ import { createContext, useContext, useState } from 'react'
 
 const AuthContext = createContext()
 
+// Provides authentication state and actions (login, logout, updateProfile) to child components
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem('user')
@@ -12,6 +13,7 @@ export const AuthProvider = ({ children }) => {
     return localStorage.getItem('token') || null
   })
 
+  // Sets authenticated user and token in both react state and localStorage
   const login = (userData, tokenData) => {
     setUser(userData)
     setToken(tokenData)
@@ -19,6 +21,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('token', tokenData)
   }
 
+  // Clears authenticated user and token from state and localStorage
   const logout = () => {
     setUser(null)
     setToken(null)
@@ -26,6 +29,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token')
   }
 
+  // Updates current user details in state and localStorage
   const updateProfile = (updatedUser) => {
     setUser(updatedUser)
     localStorage.setItem('user', JSON.stringify(updatedUser))
@@ -38,4 +42,5 @@ export const AuthProvider = ({ children }) => {
   )
 }
 
+// Custom hook to consume the AuthContext state and actions
 export const useAuth = () => useContext(AuthContext)

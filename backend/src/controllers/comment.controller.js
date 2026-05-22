@@ -1,6 +1,7 @@
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 
+// Creates a new comment on a post and increments the post's comment count.
 const addComment = async (req, res) => {
   try {
     const { text } = req.body;
@@ -32,6 +33,7 @@ const addComment = async (req, res) => {
   }
 };
 
+// Retrieves all comments for a specific post, with option to sort.
 const getComments = async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
@@ -51,6 +53,7 @@ const getComments = async (req, res) => {
   }
 };
 
+// Deletes a comment after authorizing that the requesting user is the creator, and decrements the post's comment count.
 const deleteComment = async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);

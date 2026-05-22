@@ -3,6 +3,7 @@ import { motion, useInView } from 'framer-motion'
 import PostCard from './PostCard'
 import './AnimatedPostList.css'
 
+// Wrapper component that animates individual post items when they come into view
 const AnimatedPostItem = ({ children, delay = 0, index, onMouseEnter, onClick }) => {
   const ref = useRef(null)
   const inView = useInView(ref, { amount: 0.15, once: false })
@@ -22,6 +23,7 @@ const AnimatedPostItem = ({ children, delay = 0, index, onMouseEnter, onClick })
   )
 }
 
+// Renders a list of posts with scroll-aware indicators, highlighting, and optional keyboard navigation
 export const AnimatedPostList = ({
   posts = [],
   showGradients = true,
@@ -36,10 +38,12 @@ export const AnimatedPostList = ({
   const [topGradientOpacity, setTopGradientOpacity] = useState(0)
   const [bottomGradientOpacity, setBottomGradientOpacity] = useState(1)
 
+  // Updates the selected post index on mouse enter
   const handleItemMouseEnter = useCallback((index) => {
     setSelectedIndex(index)
   }, [])
 
+  // Adjusts the top/bottom gradients opacity based on current scroll position
   const handleScroll = useCallback((e) => {
     const target = e.target
     const { scrollTop, scrollHeight, clientHeight } = target

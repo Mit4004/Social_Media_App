@@ -10,6 +10,7 @@ import AnimatedPostList from '../components/AnimatedPostList'
 import SkeletonLoader from '../components/SkeletonLoader'
 import { getTimelinePosts } from '../api/post.api'
 
+// Timeline page component that renders the main feed showing posts from friends and user triggers
 export const Timeline = () => {
   const createPostRef = useRef(null)
 
@@ -18,6 +19,7 @@ export const Timeline = () => {
     queryFn: getTimelinePosts,
   })
 
+  // Opens the CreatePost modal dialog using imperative ref handle
   const handleCreatePostClick = () => {
     createPostRef.current?.open()
   }

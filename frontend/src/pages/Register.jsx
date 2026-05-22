@@ -9,6 +9,7 @@ import { registerUser } from '../api/auth.api'
 import Input from '../components/Input'
 import Button from '../components/Button'
 
+// Register page component that allows users to create a new profile with their personal details and password
 export const Register = () => {
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
@@ -40,6 +41,7 @@ export const Register = () => {
     },
   })
 
+  // Handles form submission to trigger registration API call
   const onSubmit = (data) => {
     registerMutation.mutate(data)
   }

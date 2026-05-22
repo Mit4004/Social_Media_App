@@ -11,6 +11,7 @@ const registerSchema = z.object({
   password:  z.string().min(6, 'Password must be at least 6 characters'),
 })
 
+// Registers a new user, hashing their password and saving details to the database.
 const register = async (req, res) => {
   try {
     const parsed = registerSchema.safeParse(req.body)
@@ -54,6 +55,7 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
+// Authenticates a user by email/password and returns a JWT session token.
 const login = async (req, res) => {
   try {
     const parsed = loginSchema.safeParse(req.body)

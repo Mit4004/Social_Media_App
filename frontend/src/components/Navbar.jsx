@@ -5,6 +5,7 @@ import { Bell } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { getFriendRequests } from '../api/friend.api'
 
+// Renders the sticky top navigation bar with search links, friend requests badge, and current user avatar
 export const Navbar = () => {
   const { user } = useAuth()
 

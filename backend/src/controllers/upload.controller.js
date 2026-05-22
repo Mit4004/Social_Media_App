@@ -1,6 +1,7 @@
 const User = require('../models/User')
 const Post = require('../models/Post')
 
+// Uploads a new profile photo for the authenticated user
 const uploadProfilePhoto = async (req, res) => {
   try {
     if (!req.file) {
@@ -31,6 +32,7 @@ const uploadProfilePhoto = async (req, res) => {
   }
 }
 
+// Uploads media files attached to a post
 const uploadPostFiles = async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
