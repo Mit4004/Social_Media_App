@@ -52,14 +52,15 @@ export const FriendRequests = () => {
     <div className="min-h-screen bg-base transition-colors duration-300">
       <Navbar />
 
-      <main className="max-w-[1000px] mx-auto px-4 py-8 flex gap-8 justify-center items-start">
+      <div className="flex pl-0 md:pl-[72px]">
         {/* Left Sidebar Menu */}
         <div className="hidden md:block">
           <Sidebar />
         </div>
 
         {/* Request Feed Container */}
-        <div className="flex-1 max-w-[612px] bg-card border border-border rounded-[16px] p-6 shadow-sm transition-colors duration-300">
+        <main className="flex-1 max-w-[1000px] mx-auto px-4 py-8 flex justify-center items-start">
+          <div className="flex-1 max-w-[612px] bg-card border border-border rounded-[16px] p-6 shadow-sm transition-colors duration-300">
           
           <div className="flex flex-col gap-4">
             
@@ -123,8 +124,8 @@ export const FriendRequests = () => {
                           >
                             {senderName}
                           </Link>
-                          <span className="text-[10px] text-secondary mt-0.5 max-w-[150px] sm:max-w-xs truncate">
-                            {sender.email}
+                          <span className="text-[10px] text-muted italic mt-0.5 max-w-[150px] sm:max-w-xs truncate">
+                            Wants to connect
                           </span>
                         </div>
                       </div>
@@ -165,6 +166,7 @@ export const FriendRequests = () => {
         </div>
       </main>
     </div>
+  </div>
   )
 }
 

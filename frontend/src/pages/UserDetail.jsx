@@ -1,28 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Camera, Edit2, UserPlus, UserCheck, UserMinus, Plus, Mail, Phone, Calendar, BookOpen, Lock, Image as ImageIcon } from 'lucide-react'
+import { Camera, Edit2, Trash2, UserPlus, UserCheck, UserMinus, Users, X, AlertCircle, Mail, Phone, Calendar, BookOpen, Lock, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'react-toastify'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
 import Avatar from '../components/Avatar'
 import PostCard from '../components/PostCard'
+import AnimatedPostList from '../components/AnimatedPostList'
 import SkeletonLoader from '../components/SkeletonLoader'
 import Button from '../components/Button'
 import Input from '../components/Input'
+import ConfirmModal from '../components/ConfirmModal'
 import { useAuth } from '../context/AuthContext'
-import { getUserById, updateUser, uploadProfilePhoto } from '../api/user.api'
+import { getUserById, updateUser, uploadProfilePhoto, deleteUser } from '../api/user.api'
 import { getUserPosts } from '../api/post.api'
 import { getFriendRequests, getFriendsList, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, unfriend } from '../api/friend.api'
 import formatDate from '../utils/formatDate'
-
+ 
 export const UserDetail = () => {
   const { id: profileId } = useParams()
-  const { user: currentUser, updateProfile } = useAuth()
+  const { user: currentUser, logout, updateProfile } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const fileInputRef = useRef(null)
-
+ 
   const isOwnProfile = currentUser?._id === profileId || currentUser?.id === profileId
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState('posts')
 
   // Edit details modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -33,6 +39,17 @@ export const UserDetail = () => {
     bio: '',
   })
   const [editErrors, setEditErrors] = useState({})
+
+  // Reusable custom confirmation modal state
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    onConfirm: null,
+    isDestructive: false,
+  })
 
   // Session-persisted outgoing request tracker
   const [sentRequests, setSentRequests] = useState(() => {
@@ -52,10 +69,17 @@ export const UserDetail = () => {
     queryFn: () => getUserPosts(profileId),
   })
 
-  // Fetch logged in user's friends list
+  // Fetch profile user's friends list
+  const { data: profileFriends = [], isLoading: isFriendsLoading } = useQuery({
+    queryKey: ['friendsList', profileId],
+    queryFn: () => getFriendsList(profileId),
+    enabled: !!profileId,
+  })
+
+  // Fetch logged in user's friends list (needed to compute friendship state with this profile)
   const { data: loggedInFriends = [] } = useQuery({
-    queryKey: ['friendsList'],
-    queryFn: getFriendsList,
+    queryKey: ['friendsList', currentUser?._id || currentUser?.id],
+    queryFn: () => getFriendsList(currentUser?._id || currentUser?.id),
     enabled: !isOwnProfile && !!currentUser,
   })
 
@@ -98,6 +122,14 @@ export const UserDetail = () => {
   }
 
   const friendshipState = getFriendshipState()
+
+  const canSeeEmailOf = (targetUserId) => {
+    if (!currentUser) return false
+    const currentUserId = currentUser._id || currentUser.id
+    if (targetUserId === currentUserId) return true
+    if (isOwnProfile) return true
+    return loggedInFriends.some((f) => f._id === targetUserId)
+  }
 
   // Mutations
   // Send Friend Request Mutation
@@ -243,16 +275,47 @@ export const UserDetail = () => {
     editProfileMutation.mutate(editForm)
   }
 
+  // Delete Profile Mutation
+  const deleteProfileMutation = useMutation({
+    mutationFn: () => deleteUser(profileId),
+    onSuccess: () => {
+      toast.success('Your profile was deleted successfully. Logging you out...')
+      logout()
+      navigate('/login')
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || 'Failed to delete profile.')
+    },
+  })
+
+  const handleDeleteProfile = () => {
+    const confirmMsg = 'WARNING: Are you sure you want to permanently delete your profile? This will delete all your posts, friends list connections, comments, and likes. This action cannot be undone!'
+    setConfirmModal({
+      isOpen: true,
+      title: 'Permanently Delete Profile',
+      message: confirmMsg,
+      confirmText: 'Delete Profile',
+      cancelText: 'Cancel',
+      isDestructive: true,
+      onConfirm: () => {
+        deleteProfileMutation.mutate()
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }))
+      },
+    })
+  }
+
   if (isProfileLoading) {
     return (
       <div className="min-h-screen bg-base transition-colors duration-300">
         <Navbar />
-        <div className="max-w-[1000px] mx-auto px-4 py-8 flex gap-8 justify-center items-start">
+        <div className="flex pl-0 md:pl-[72px]">
           <div className="hidden md:block">
             <Sidebar />
           </div>
-          <div className="flex-1 max-w-[612px] bg-card border border-border rounded-[16px] p-6 shadow-sm">
-            <SkeletonLoader type="post" count={2} />
+          <div className="flex-1 max-w-[1000px] mx-auto px-4 py-8 flex justify-center items-start">
+            <div className="flex-1 max-w-[612px] bg-card border border-border rounded-[16px] p-6 shadow-sm">
+              <SkeletonLoader type="post" count={2} />
+            </div>
           </div>
         </div>
       </div>
@@ -285,14 +348,15 @@ export const UserDetail = () => {
     <div className="min-h-screen bg-base transition-colors duration-300">
       <Navbar />
 
-      <main className="max-w-[1000px] mx-auto px-4 py-6 flex gap-8 justify-center items-start">
+      <div className="flex pl-0 md:pl-[72px]">
         {/* Left column sidebar (hidden on mobile) */}
         <div className="hidden md:block">
           <Sidebar />
         </div>
 
         {/* Profile Details Area */}
-        <div className="flex-1 max-w-[612px] flex flex-col gap-6">
+        <main className="flex-1 max-w-[1000px] mx-auto px-4 py-6 flex justify-center items-start">
+          <div className="flex-1 max-w-[612px] flex flex-col gap-6">
           
           {/* Card containing Cover, Avatar, and Main actions */}
           <div className="bg-card border border-border rounded-[16px] overflow-hidden shadow-sm transition-colors duration-300">
@@ -340,15 +404,27 @@ export const UserDetail = () => {
               {/* Action buttons (right-aligned on sm screens, below on mobile) */}
               <div className="w-full flex justify-center sm:justify-end gap-2 pt-16 sm:pt-4">
                 {friendshipState === 'self' && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="rounded-full shadow-sm flex items-center gap-1.5 font-semibold"
-                  >
-                    <Edit2 size={13} />
-                    <span>Edit Profile</span>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="rounded-full shadow-sm flex items-center gap-1.5 font-semibold"
+                    >
+                      <Edit2 size={13} />
+                      <span>Edit Profile</span>
+                    </Button>
+                    <Button
+                      variant="dangerOutline"
+                      size="sm"
+                      onClick={handleDeleteProfile}
+                      isLoading={deleteProfileMutation.isPending}
+                      className="rounded-full shadow-sm flex items-center gap-1.5 font-semibold text-danger border-danger hover:bg-danger/5"
+                    >
+                      <Trash2 size={13} />
+                      <span>Delete Profile</span>
+                    </Button>
+                  </div>
                 )}
 
                 {friendshipState === 'friends' && (
@@ -356,9 +432,18 @@ export const UserDetail = () => {
                     variant="secondary"
                     size="sm"
                     onClick={() => {
-                      if (window.confirm(`Are you sure you want to unfriend ${profileName}?`)) {
-                        unfriendMutation.mutate()
-                      }
+                      setConfirmModal({
+                        isOpen: true,
+                        title: 'Unfriend Connection',
+                        message: `Are you sure you want to unfriend ${profileName}?`,
+                        confirmText: 'Unfriend',
+                        cancelText: 'Cancel',
+                        isDestructive: true,
+                        onConfirm: () => {
+                          unfriendMutation.mutate()
+                          setConfirmModal((prev) => ({ ...prev, isOpen: false }))
+                        },
+                      })
                     }}
                     isLoading={unfriendMutation.isPending}
                     className="rounded-full border-danger/20 text-danger hover:bg-danger/10 flex items-center gap-1.5"
@@ -442,7 +527,9 @@ export const UserDetail = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 pt-4 border-t border-border/50 text-xs text-secondary">
                   <div className="flex items-center gap-2.5 justify-center sm:justify-start">
                     <Mail size={14} className="text-muted" />
-                    <span>{profileUser.email}</span>
+                    <span>
+                      {canSeeEmailOf(profileUser._id) ? profileUser.email : 'Email hidden'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2.5 justify-center sm:justify-start">
                     <Phone size={14} className="text-muted" />
@@ -459,42 +546,120 @@ export const UserDetail = () => {
             </div>
           </div>
 
-          {/* 3. User Posts Section */}
-          <div className="flex flex-col gap-4">
-            <h3 className="font-bold text-sm text-primary px-1 flex items-center gap-2">
-              <BookOpen size={16} className="text-secondary" />
-              <span>{isOwnProfile ? 'My Posts' : `${profileUser.firstName}'s Posts`}</span>
-              <span className="text-xs text-secondary font-normal">({userPosts.length})</span>
-            </h3>
-
-            {isPostsLoading ? (
-              <div className="space-y-4">
-                <SkeletonLoader type="post" count={2} />
-              </div>
-            ) : userPosts.length === 0 ? (
-              <div className="bg-card border border-border p-12 rounded-[16px] text-center shadow-sm flex flex-col items-center gap-3 transition-colors duration-300">
-                <div className="w-10 h-10 bg-input rounded-full flex items-center justify-center text-muted">
-                  <ImageIcon size={18} />
-                </div>
-                <h4 className="font-bold text-sm text-primary">No Posts Published</h4>
-                <p className="text-xs text-secondary max-w-[240px] leading-relaxed">
-                  {isOwnProfile 
-                    ? "You haven't written any updates yet. Share your thoughts on the timeline!" 
-                    : `${profileUser.firstName} has not published any posts yet.`
-                  }
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col">
-                {userPosts.map((post) => (
-                  <PostCard key={post._id} post={post} />
-                ))}
-              </div>
-            )}
+          {/* Tab Navigation */}
+          <div className="flex border-b border-border/80 bg-card rounded-[14px] overflow-hidden border transition-colors duration-300">
+            <button
+              onClick={() => setActiveTab('posts')}
+              className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-2 cursor-pointer ${
+                activeTab === 'posts'
+                  ? 'border-accent text-accent bg-base/5'
+                  : 'border-transparent text-secondary hover:text-primary hover:bg-base/5'
+              }`}
+            >
+              <BookOpen size={14} />
+              <span>Posts</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                activeTab === 'posts' ? 'bg-accent/15 text-accent' : 'bg-input text-secondary'
+              }`}>
+                {userPosts.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('friends')}
+              className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-2 cursor-pointer ${
+                activeTab === 'friends'
+                  ? 'border-accent text-accent bg-base/5'
+                  : 'border-transparent text-secondary hover:text-primary hover:bg-base/5'
+              }`}
+            >
+              <Users size={14} />
+              <span>Friends</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                activeTab === 'friends' ? 'bg-accent/15 text-accent' : 'bg-input text-secondary'
+              }`}>
+                {profileFriends.length}
+              </span>
+            </button>
           </div>
+
+          {/* Conditional Content Section */}
+          {activeTab === 'posts' ? (
+            <div className="flex flex-col gap-4">
+              {isPostsLoading ? (
+                <div className="space-y-4">
+                  <SkeletonLoader type="post" count={2} />
+                </div>
+              ) : userPosts.length === 0 ? (
+                <div className="bg-card border border-border p-12 rounded-[16px] text-center shadow-sm flex flex-col items-center gap-3 transition-colors duration-300">
+                  <div className="w-10 h-10 bg-input rounded-full flex items-center justify-center text-muted">
+                    <ImageIcon size={18} />
+                  </div>
+                  <h4 className="font-bold text-sm text-primary">No Posts Published</h4>
+                  <p className="text-xs text-secondary max-w-[240px] leading-relaxed">
+                    {isOwnProfile 
+                      ? "You haven't written any updates yet. Share your thoughts on the timeline!" 
+                      : `${profileUser.firstName} has not published any posts yet.`
+                    }
+                  </p>
+                </div>
+              ) : (
+                <AnimatedPostList posts={userPosts} />
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {isFriendsLoading ? (
+                <div className="space-y-4">
+                  <SkeletonLoader type="post" count={1} />
+                </div>
+              ) : profileFriends.length === 0 ? (
+                <div className="bg-card border border-border p-12 rounded-[16px] text-center shadow-sm flex flex-col items-center gap-3 transition-colors duration-300">
+                  <div className="w-10 h-10 bg-input rounded-full flex items-center justify-center text-muted">
+                    <UserMinus size={18} />
+                  </div>
+                  <h4 className="font-bold text-sm text-primary">No Friends Yet</h4>
+                  <p className="text-xs text-secondary max-w-[240px] leading-relaxed">
+                    {isOwnProfile 
+                      ? "You haven't added any friends yet. Explore the directory to find friends!" 
+                      : `${profileUser.firstName} doesn't have any friends listed yet.`
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {profileFriends.map((friend) => {
+                    const friendName = `${friend.firstName} ${friend.lastName}`
+                    return (
+                      <Link 
+                        key={friend._id} 
+                        to={`/user/${friend._id}`}
+                        className="flex items-center gap-3 p-3 bg-card border border-border/60 hover:border-accent/40 rounded-[14px] shadow-sm hover:shadow-md transition-all duration-300 group hover:-translate-y-0.5"
+                      >
+                        <Avatar
+                          src={friend.profilePhoto || friend.photo}
+                          firstName={friend.firstName}
+                          lastName={friend.lastName}
+                          size="md"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-xs text-primary truncate group-hover:text-accent transition-colors">
+                            {friendName}
+                          </h4>
+                          <p className="text-[10px] text-secondary truncate mt-0.5">
+                            {canSeeEmailOf(friend._id) ? friend.email : 'Email hidden'}
+                          </p>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
       </main>
+    </div>
 
       {/* Edit Profile Modal Dialog (for own profile details) */}
       {isOwnProfile && isEditModalOpen && (
@@ -589,6 +754,18 @@ export const UserDetail = () => {
         </div>
       )}
 
+      {/* Reusable Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        isDestructive={confirmModal.isDestructive}
+        isLoading={deleteProfileMutation.isPending || unfriendMutation.isPending}
+      />
     </div>
   )
 }

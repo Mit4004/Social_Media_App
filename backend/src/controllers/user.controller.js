@@ -1,4 +1,9 @@
 const User = require('../models/User')
+const Friend = require('../models/Friend')
+const FriendRequest = require('../models/FriendRequest')
+const Post = require('../models/Post')
+const Like = require('../models/Like')
+const Comment = require('../models/Comment')
 
 const getUsers = async (req, res) => {
   try {
@@ -10,15 +15,17 @@ const getUsers = async (req, res) => {
       order = 'desc'
     } = req.query
 
+    const baseFilter = req.userId ? { _id: { $ne: req.userId } } : {}
     const filter = search
       ? {
+          ...baseFilter,
           $or: [
             { firstName: { $regex: search, $options: 'i' } },
             { lastName:  { $regex: search, $options: 'i' } },
             { email:     { $regex: search, $options: 'i' } },
           ],
         }
-      : {}
+      : baseFilter
 
     const skip = (Number(page) - 1) * Number(limit)
 
@@ -33,8 +40,24 @@ const getUsers = async (req, res) => {
       User.countDocuments(filter),
     ])
 
+    const currentUserId = req.userId ? req.userId.toString() : '';
+    const friends = currentUserId
+      ? await Friend.find({ $or: [{ user1: currentUserId }, { user2: currentUserId }] })
+      : [];
+    const friendIds = new Set(friends.map(f => 
+      f.user1.toString() === currentUserId ? f.user2.toString() : f.user1.toString()
+    ));
+
+    const processedUsers = users.map(user => {
+      const userObj = user.toObject();
+      if (userObj._id.toString() !== currentUserId && !friendIds.has(userObj._id.toString())) {
+        delete userObj.email;
+      }
+      return userObj;
+    });
+
     res.status(200).json({
-      users,
+      users: processedUsers,
       pagination: {
         total,
         page:       Number(page),
@@ -55,7 +78,29 @@ const getUserById = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    res.status(200).json({ user })
+    const currentUserId = req.userId ? req.userId.toString() : '';
+    const targetUserId = user._id.toString();
+    const isSelf = targetUserId === currentUserId;
+
+    let isFriend = false;
+    if (!isSelf && currentUserId) {
+      const friendship = await Friend.findOne({
+        $or: [
+          { user1: currentUserId, user2: targetUserId },
+          { user1: targetUserId, user2: currentUserId }
+        ]
+      });
+      if (friendship) {
+        isFriend = true;
+      }
+    }
+
+    const userObj = user.toObject();
+    if (!isSelf && !isFriend) {
+      delete userObj.email;
+    }
+
+    res.status(200).json({ user: userObj })
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message })
   }
@@ -99,17 +144,32 @@ const updateUser = async (req, res) => {
 
 const deleteUser = async (req, res) => {
   try {
-    if (req.params.id !== req.userId.toString()) {
+    const userIdToDelete = req.params.id
+    if (userIdToDelete !== req.userId.toString()) {
       return res.status(403).json({ message: 'Not allowed to delete this profile' })
     }
 
-    const deleted = await User.findByIdAndDelete(req.params.id)
+    // Find the user's posts to delete associated comments and likes
+    const userPosts = await Post.find({ user: userIdToDelete }).select('_id')
+    const postIds = userPosts.map(p => p._id)
+
+    // Delete the user
+    const deleted = await User.findByIdAndDelete(userIdToDelete)
 
     if (!deleted) {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    res.status(200).json({ message: 'User deleted successfully' })
+    // Execute cascade deletes in parallel
+    await Promise.all([
+      Post.deleteMany({ user: userIdToDelete }),
+      Friend.deleteMany({ $or: [{ user1: userIdToDelete }, { user2: userIdToDelete }] }),
+      FriendRequest.deleteMany({ $or: [{ sender: userIdToDelete }, { receiver: userIdToDelete }] }),
+      Like.deleteMany({ $or: [{ user: userIdToDelete }, { post: { $in: postIds } }] }),
+      Comment.deleteMany({ $or: [{ user: userIdToDelete }, { post: { $in: postIds } }] }),
+    ])
+
+    res.status(200).json({ message: 'User and all associated data deleted successfully' })
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message })
   }

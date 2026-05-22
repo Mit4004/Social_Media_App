@@ -50,10 +50,12 @@ export const getFriendRequests = async () => {
 }
 
 /**
- * Get the list of all friends for the logged-in user
+ * Get the list of all friends for a user (or logged-in user if not specified)
+ * @param {string} [userId] - Optional user ID to get friends for
  * @returns {Promise<Array>} - List of friends
  */
-export const getFriendsList = async () => {
-  const response = await API.get('/friends/list')
+export const getFriendsList = async (userId) => {
+  const url = userId ? `/friends/list?userId=${userId}` : '/friends/list'
+  const response = await API.get(url)
   return response.data.friends
 }

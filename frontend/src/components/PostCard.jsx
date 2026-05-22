@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Heart, MessageCircle, Share2, Trash2, Send, CornerDownRight } from 'lucide-react'
+import { Heart, MessageCircle, Trash2, Send, CornerDownRight } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useAuth } from '../context/AuthContext'
 import { deletePost, likePost, unlikePost } from '../api/post.api'
@@ -9,6 +9,7 @@ import { getComments, createComment, deleteComment } from '../api/comment.api'
 import Avatar from './Avatar'
 import formatDate from '../utils/formatDate'
 import Button from './Button'
+import ConfirmModal from './ConfirmModal'
 
 export const PostCard = ({ post }) => {
   const { user } = useAuth()
@@ -16,13 +17,26 @@ export const PostCard = ({ post }) => {
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState('')
 
+  // Reusable custom confirmation modal state
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    onConfirm: null,
+    isDestructive: false,
+  })
+
   // Check if post belongs to the logged-in user
   const postAuthorId = post.user?._id || post.user
   const isOwnPost = postAuthorId === user?._id
 
-  // Load liked status from localStorage to persist liked state during refreshing
+  // Scope the liked_posts key to the logged-in user so different users don't share like state
+  const likeKey = `liked_posts_${user?._id || user?.id}`
+
   const [isLiked, setIsLiked] = useState(() => {
-    const liked = JSON.parse(localStorage.getItem('liked_posts') || '[]')
+    const liked = JSON.parse(localStorage.getItem(likeKey) || '[]')
     return liked.includes(post._id)
   })
   const [likesCount, setLikesCount] = useState(post.likesCount || 0)
@@ -66,19 +80,19 @@ export const PostCard = ({ post }) => {
   })
 
   const handleLikeToggle = () => {
-    const liked = JSON.parse(localStorage.getItem('liked_posts') || '[]')
+    const liked = JSON.parse(localStorage.getItem(likeKey) || '[]')
     if (isLiked) {
       setIsLiked(false)
       setLikesCount((prev) => Math.max(0, prev - 1))
       unlikeMutation.mutate()
       const updated = liked.filter((id) => id !== post._id)
-      localStorage.setItem('liked_posts', JSON.stringify(updated))
+      localStorage.setItem(likeKey, JSON.stringify(updated))
     } else {
       setIsLiked(true)
       setLikesCount((prev) => prev + 1)
       likeMutation.mutate()
       liked.push(post._id)
-      localStorage.setItem('liked_posts', JSON.stringify(liked))
+      localStorage.setItem(likeKey, JSON.stringify(liked))
     }
   }
 
@@ -95,9 +109,18 @@ export const PostCard = ({ post }) => {
   })
 
   const handleDeletePost = () => {
-    if (window.confirm('Are you sure you want to delete this post?')) {
-      deletePostMutation.mutate()
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Post',
+      message: 'Are you sure you want to permanently delete this post? This action cannot be undone.',
+      confirmText: 'Delete Post',
+      cancelText: 'Cancel',
+      isDestructive: true,
+      onConfirm: () => {
+        deletePostMutation.mutate()
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }))
+      },
+    })
   }
 
   // Add Comment Mutation
@@ -135,9 +158,18 @@ export const PostCard = ({ post }) => {
   })
 
   const handleDeleteComment = (commentId) => {
-    if (window.confirm('Delete this comment?')) {
-      deleteCommentMutation.mutate(commentId)
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Comment',
+      message: 'Are you sure you want to delete this comment?',
+      confirmText: 'Delete Comment',
+      cancelText: 'Cancel',
+      isDestructive: true,
+      onConfirm: () => {
+        deleteCommentMutation.mutate(commentId)
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }))
+      },
+    })
   }
 
   // Render media attachments grid
@@ -248,17 +280,7 @@ export const PostCard = ({ post }) => {
           <span>{post.commentsCount || 0} {post.commentsCount === 1 ? 'Comment' : 'Comments'}</span>
         </button>
 
-        {/* Share Button (placeholder action) */}
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(window.location.origin + `/user/${postAuthorId}`)
-            toast.info('Author profile link copied to clipboard!')
-          }}
-          className="flex items-center gap-2 hover:bg-base py-2 px-4 rounded-[12px] transition-colors cursor-pointer hover:text-primary"
-        >
-          <Share2 size={16} />
-          <span>Share</span>
-        </button>
+
       </div>
 
       {/* Nested Comments Section */}
@@ -351,6 +373,18 @@ export const PostCard = ({ post }) => {
         </div>
       )}
 
+      {/* Reusable Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        isDestructive={confirmModal.isDestructive}
+        isLoading={deletePostMutation.isPending || deleteCommentMutation.isPending}
+      />
     </article>
   )
 }

@@ -6,7 +6,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import ProtectedRoute from './components/ProtectedRoute'
 import PublicRoute from './components/PublicRoute'
 
-import Login from './pages/Login'
+import Login from './pages/Login' 
 import Register from './pages/Register'
 import Timeline from './pages/Timeline'
 import UsersList from './pages/UsersList'

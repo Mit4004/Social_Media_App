@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
-import { Eye, Edit2, Trash2, Search, ArrowUpDown, ChevronLeft, ChevronRight, X, UserMinus, AlertCircle } from 'lucide-react'
+import { Eye, Edit2, Search, ArrowUpDown, ChevronLeft, ChevronRight, X, UserMinus, Users, AlertCircle, Phone } from 'lucide-react'
 import { toast } from 'react-toastify'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
@@ -10,7 +10,8 @@ import SkeletonLoader from '../components/SkeletonLoader'
 import Button from '../components/Button'
 import Input from '../components/Input'
 import { useAuth } from '../context/AuthContext'
-import { getUsers, deleteUser, updateUser } from '../api/user.api'
+import { getUsers, updateUser } from '../api/user.api'
+import { getFriendsList } from '../api/friend.api'
 import formatDate from '../utils/formatDate'
 
 export const UsersList = () => {
@@ -25,8 +26,8 @@ export const UsersList = () => {
   const [sortBy, setSortBy] = useState('createdAt')
   const [order, setOrder] = useState('desc')
   
-  // Selection states for bulk actions
-  const [selectedIds, setSelectedIds] = useState([])
+  // View mode state ('all' | 'friends')
+  const [viewMode, setViewMode] = useState('all')
 
   // Modal edit states
   const [editingUser, setEditingUser] = useState(null)
@@ -52,10 +53,63 @@ export const UsersList = () => {
     queryKey: ['usersList', debouncedSearch, page, sortBy, order],
     queryFn: () => getUsers({ search: debouncedSearch, page, limit: 8, sortBy, order }),
     placeholderData: (previousData) => previousData,
+    enabled: viewMode === 'all',
   })
 
   const users = usersData?.users || []
   const pagination = usersData?.pagination || { page: 1, totalPages: 1, total: 0 }
+
+  // Query friends list
+  const { data: myFriendsList = [], isLoading: isFriendsLoading } = useQuery({
+    queryKey: ['friendsList', currentUser?._id || currentUser?.id],
+    queryFn: () => getFriendsList(currentUser?._id || currentUser?.id),
+    enabled: !!currentUser,
+  })
+
+  // Filter friends list locally by search term
+  const filteredFriends = myFriendsList.filter((friend) => {
+    const fullName = `${friend.firstName} ${friend.lastName}`.toLowerCase()
+    const email = (friend.email || '').toLowerCase()
+    const term = debouncedSearch.toLowerCase()
+    return fullName.includes(term) || email.includes(term)
+  })
+
+  // Sort friends list locally
+  const sortedFriends = [...filteredFriends].sort((a, b) => {
+    let valA = a[sortBy] || ''
+    let valB = b[sortBy] || ''
+
+    if (sortBy === 'firstName') {
+      valA = `${a.firstName} ${a.lastName}`.toLowerCase()
+      valB = `${b.firstName} ${b.lastName}`.toLowerCase()
+    } else if (typeof valA === 'string') {
+      valA = valA.toLowerCase()
+      valB = valB.toLowerCase()
+    }
+
+    if (typeof valA === 'string') {
+      return order === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA)
+    } else {
+      return order === 'asc' ? valA - valB : valB - valA
+    }
+  })
+
+  // Paginate friends list locally
+  const limit = 8
+  const startIndex = (page - 1) * limit
+  const paginatedFriends = sortedFriends.slice(startIndex, startIndex + limit)
+
+  const friendsPagination = {
+    page,
+    totalPages: Math.ceil(sortedFriends.length / limit) || 1,
+    total: sortedFriends.length,
+  }
+
+  // Active state selectors based on viewMode
+  const activeUsers = viewMode === 'all' ? users : paginatedFriends
+  const activePagination = viewMode === 'all' ? pagination : friendsPagination
+  const activeIsLoading = viewMode === 'all' ? isLoading : isFriendsLoading
+  const activeError = viewMode === 'all' ? error : null
 
   // Toggle sort field/direction
   const handleSort = (field) => {
@@ -66,94 +120,6 @@ export const UsersList = () => {
       setOrder('asc')
     }
   }
-
-  // Row selection handler
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedIds(users.map((u) => u._id))
-    } else {
-      setSelectedIds([])
-    }
-  }
-
-  const handleSelectRow = (e, userId) => {
-    if (e.target.checked) {
-      setSelectedIds((prev) => [...prev, userId])
-    } else {
-      setSelectedIds((prev) => prev.filter((id) => id !== userId))
-    }
-  }
-
-  // Delete User Mutation (for deleting logged-in user, triggers logout)
-  const deleteMutation = useMutation({
-    mutationFn: (id) => deleteUser(id),
-    onSuccess: (_, id) => {
-      if (id === currentUser?._id) {
-        toast.info('Your profile was deleted successfully. Logging you out...')
-        logout()
-        navigate('/login')
-      } else {
-        toast.success('User deleted successfully.')
-        queryClient.invalidateQueries({ queryKey: ['usersList'] })
-      }
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || 'Failed to delete user profile.')
-    },
-  })
-
-  const handleDelete = (userId) => {
-    const isSelf = userId === currentUser?._id
-    const confirmMsg = isSelf 
-      ? 'WARNING: Deleting your profile will permanently remove your account and all posts. Are you sure you want to proceed?'
-      : 'Are you sure you want to delete this user profile?'
-
-    if (window.confirm(confirmMsg)) {
-      deleteMutation.mutate(userId)
-    }
-  }
-
-  // Multi-delete (bulk action) execution
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return
-    if (!window.confirm(`Are you sure you want to delete the ${selectedIds.length} selected profiles?`)) return
-
-    const toastId = toast.loading('Executing bulk delete...')
-    let successCount = 0
-    let failureCount = 0
-
-    // Execute requests in parallel
-    await Promise.all(
-      selectedIds.map(async (id) => {
-        try {
-          await deleteUser(id)
-          successCount++
-          if (id === currentUser?._id) {
-            // If self is deleted, we'll log out at the end
-            setTimeout(() => {
-              logout()
-              navigate('/login')
-            }, 1500)
-          }
-        } catch (err) {
-          failureCount++
-        }
-      })
-    )
-
-    toast.update(toastId, {
-      render: `Bulk delete complete. Successes: ${successCount}, Failures: ${failureCount} ${
-        failureCount > 0 ? '(Backend rule: You can only delete your own profile!)' : ''
-      }`,
-      type: failureCount > 0 ? 'warning' : 'success',
-      isLoading: false,
-      autoClose: 5000,
-    })
-
-    setSelectedIds([])
-    queryClient.invalidateQueries({ queryKey: ['usersList'] })
-  }
-
   // Edit profile actions
   const openEditModal = (user) => {
     setEditingUser(user)
@@ -213,14 +179,15 @@ export const UsersList = () => {
     <div className="min-h-screen bg-base transition-colors duration-300">
       <Navbar />
 
-      <main className="max-w-[1000px] mx-auto px-4 py-8 flex gap-8 justify-center items-start">
+      <div className="flex pl-0 md:pl-[72px]">
         {/* Sidebar Nav */}
         <div className="hidden md:block">
           <Sidebar />
         </div>
 
         {/* Users List Container */}
-        <div className="flex-1 bg-card border border-border rounded-[16px] p-6 shadow-sm overflow-hidden transition-colors duration-300">
+        <main className="flex-1 max-w-[1000px] mx-auto px-4 py-8 flex justify-center items-start">
+          <div className="flex-1 bg-card border border-border rounded-[16px] p-6 shadow-sm overflow-hidden transition-colors duration-300">
           
           <div className="flex flex-col gap-4">
             
@@ -230,6 +197,44 @@ export const UsersList = () => {
               <p className="text-xs text-secondary mt-1">
                 Explore connected members, manage profiles, and search connections.
               </p>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex border-b border-border/80 mt-2 bg-card transition-colors duration-300">
+              <button
+                onClick={() => {
+                  setViewMode('all')
+                  setPage(1)
+                  setSelectedIds([])
+                }}
+                className={`py-2.5 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                  viewMode === 'all'
+                    ? 'border-accent text-accent'
+                    : 'border-transparent text-secondary hover:text-primary'
+                }`}
+              >
+                Explore Directory
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('friends')
+                  setPage(1)
+                  setSelectedIds([])
+                }}
+                className={`py-2.5 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                  viewMode === 'friends'
+                    ? 'border-accent text-accent'
+                    : 'border-transparent text-secondary hover:text-primary'
+                }`}
+              >
+                <Users size={14} />
+                <span>My Friends</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                  viewMode === 'friends' ? 'bg-accent/15 text-accent' : 'bg-input text-secondary'
+                }`}>
+                  {myFriendsList.length}
+                </span>
+              </button>
             </div>
 
             {/* Filter Toolbar */}
@@ -244,29 +249,18 @@ export const UsersList = () => {
                   className="w-full pl-10 pr-4 py-2 bg-input border border-border text-xs rounded-full focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 text-primary transition-colors"
                 />
               </div>
-
-              {/* Bulk Actions Menu */}
-              {selectedIds.length > 0 && (
-                <button
-                  onClick={handleBulkDelete}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-danger/10 hover:bg-danger/25 text-danger font-semibold rounded-[12px] text-xs transition-colors cursor-pointer"
-                >
-                  <Trash2 size={14} />
-                  Delete Selected ({selectedIds.length})
-                </button>
-              )}
             </div>
 
             {/* Content Display */}
-            {isLoading ? (
+            {activeIsLoading ? (
               <div className="mt-4">
                 <SkeletonLoader type="list" count={4} />
               </div>
-            ) : error ? (
+            ) : activeError ? (
               <div className="p-8 text-center border border-border rounded-[12px] mt-4">
                 <p className="text-danger font-medium text-sm">Failed to retrieve users directory.</p>
               </div>
-            ) : users.length === 0 ? (
+            ) : activeUsers.length === 0 ? (
               <div className="p-12 text-center border border-border rounded-[12px] mt-4 flex flex-col items-center gap-2">
                 <div className="text-3xl">🔍</div>
                 <h4 className="font-bold text-sm text-primary">No results found</h4>
@@ -277,28 +271,12 @@ export const UsersList = () => {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-input text-secondary border-b border-border text-[11px] font-bold uppercase tracking-wider">
-                      <th className="py-3 px-4 w-[48px]">
-                        <input
-                          type="checkbox"
-                          onChange={handleSelectAll}
-                          checked={selectedIds.length === users.length && users.length > 0}
-                          className="rounded border-border text-accent focus:ring-accent"
-                        />
-                      </th>
                       <th 
                         className="py-3 px-4 cursor-pointer hover:text-primary transition-colors select-none"
                         onClick={() => handleSort('firstName')}
                       >
                         <div className="flex items-center gap-1.5">
                           Name <ArrowUpDown size={12} />
-                        </div>
-                      </th>
-                      <th 
-                        className="py-3 px-4 cursor-pointer hover:text-primary transition-colors select-none hidden sm:table-cell"
-                        onClick={() => handleSort('email')}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          Email <ArrowUpDown size={12} />
                         </div>
                       </th>
                       <th className="py-3 px-4 hidden md:table-cell">Mobile</th>
@@ -314,29 +292,19 @@ export const UsersList = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60 text-xs text-primary">
-                    {users.map((u) => {
+                    {activeUsers.map((u) => {
                       const isSelf = u._id === currentUser?._id
-                      const isSelected = selectedIds.includes(u._id)
+                      const isFriend = myFriendsList.some((f) => f._id === u._id)
                       
                       return (
                         <tr 
                           key={u._id} 
-                          className={`hover:bg-base/30 transition-colors duration-150 ${
-                            isSelected ? 'bg-accent/5' : ''
-                          }`}
+                          className="hover:bg-base/30 transition-colors duration-150"
                         >
-                          <td className="py-3 px-4">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => handleSelectRow(e, u._id)}
-                              className="rounded border-border text-accent focus:ring-accent"
-                            />
-                          </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
                               <Avatar
-                                src={u.photo || u.profilePicture}
+                                src={u.photo || u.profilePicture || u.profilePhoto?.url}
                                 firstName={u.firstName}
                                 lastName={u.lastName}
                                 size="sm"
@@ -352,12 +320,24 @@ export const UsersList = () => {
                                     </span>
                                   )}
                                 </span>
-                                <span className="text-[10px] text-secondary sm:hidden block mt-0.5">{u.email}</span>
+                                {isSelf || isFriend ? (
+                                  <span className="text-[10px] text-secondary/70 mt-0.5">{u.email}</span>
+                                ) : (
+                                  <span className="text-[10px] text-muted/50 italic mt-0.5">Email hidden</span>
+                                )}
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 px-4 hidden sm:table-cell text-secondary">{u.email}</td>
-                          <td className="py-3 px-4 hidden md:table-cell text-secondary">{u.mobile || '—'}</td>
+                          <td className="py-3 px-4 hidden md:table-cell text-secondary">
+                            {u.mobile ? (
+                              <div className="flex items-center gap-1.5">
+                                <Phone size={12} className="text-secondary/60" />
+                                <span>{u.mobile}</span>
+                              </div>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
                           <td className="py-3 px-4 hidden lg:table-cell text-secondary">{formatDate(u.createdAt)}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center justify-end gap-1.5">
@@ -368,46 +348,6 @@ export const UsersList = () => {
                               >
                                 <Eye size={14} />
                               </Link>
-                              
-                              {/* Edit triggers inline modal for self */}
-                              {isSelf ? (
-                                <button
-                                  onClick={() => openEditModal(u)}
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-secondary hover:text-accent hover:bg-base transition-colors cursor-pointer"
-                                  title="Edit Profile"
-                                >
-                                  <Edit2 size={14} />
-                                </button>
-                              ) : (
-                                <button
-                                  disabled
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-muted opacity-25 cursor-not-allowed"
-                                  title="Edit Profile (Only own accounts)"
-                                >
-                                  <Edit2 size={14} />
-                                </button>
-                              )}
-
-                              {/* Delete button: Self triggers delete, others disabled (or fail at backend level) */}
-                              {isSelf ? (
-                                <button
-                                  onClick={() => handleDelete(u._id)}
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-secondary hover:text-danger hover:bg-danger/10 transition-colors cursor-pointer"
-                                  title="Delete Account"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    toast.error('Permission denied: You can only delete your own profile.')
-                                  }}
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-secondary hover:text-danger hover:bg-danger/10 transition-colors cursor-pointer"
-                                  title="Delete Profile (Own account only)"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -417,14 +357,14 @@ export const UsersList = () => {
                 </table>
               </div>
             )}
-
+ 
             {/* Pagination Controls */}
-            {!isLoading && !error && users.length > 0 && (
+            {!activeIsLoading && !activeError && activeUsers.length > 0 && (
               <div className="flex items-center justify-between border-t border-border/60 pt-4 mt-2">
                 <span className="text-[11px] font-medium text-secondary">
-                  Showing Page <b className="text-primary">{pagination.page}</b> of{' '}
-                  <b className="text-primary">{pagination.totalPages}</b> (Total:{' '}
-                  {pagination.total})
+                  Showing Page <b className="text-primary">{activePagination.page}</b> of{' '}
+                  <b className="text-primary">{activePagination.totalPages}</b> (Total:{' '}
+                  {activePagination.total})
                 </span>
                 
                 <div className="flex items-center gap-1.5">
@@ -432,7 +372,7 @@ export const UsersList = () => {
                     variant="secondary"
                     size="sm"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={pagination.page === 1}
+                    disabled={activePagination.page === 1}
                     className="px-2 py-1 rounded-[10px]"
                   >
                     <ChevronLeft size={16} />
@@ -440,8 +380,8 @@ export const UsersList = () => {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                    disabled={pagination.page === pagination.totalPages}
+                    onClick={() => setPage((p) => Math.min(activePagination.totalPages, p + 1))}
+                    disabled={activePagination.page === activePagination.totalPages}
                     className="px-2 py-1 rounded-[10px]"
                   >
                     <ChevronRight size={16} />
@@ -454,6 +394,7 @@ export const UsersList = () => {
 
         </div>
       </main>
+    </div>
 
       {/* Inline Modal Edit Profile (for own profile) */}
       {editingUser && (

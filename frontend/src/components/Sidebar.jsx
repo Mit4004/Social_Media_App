@@ -1,105 +1,91 @@
-import React from 'react'
-import { NavLink, Link } from 'react-router-dom'
-import { Home, Users, UserPlus, Plus } from 'lucide-react'
+import React, { useState } from 'react'
+import { NavLink, Link, useNavigate } from 'react-router-dom'
+import { Home, Users, UserPlus, Plus, LogOut, Sun, Moon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import Avatar from './Avatar'
-import Button from './Button'
 
 export const Sidebar = ({ onCreatePost }) => {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
+  const navigate = useNavigate()
 
   if (!user) return null
 
   const profileUrl = `/user/${user._id || user.id}`
 
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
+  const navItems = [
+    { to: '/', icon: <Home size={22} />, label: 'Home' },
+    { to: '/people', icon: <Users size={22} />, label: 'People' },
+    { to: '/requests', icon: <UserPlus size={22} />, label: 'Requests' },
+  ]
+
   return (
-    <aside className="w-[240px] flex-shrink-0 sticky top-[89px] h-fit">
-      
-      {/* Profile Card Container */}
-      <div className="bg-card border border-border rounded-[16px] p-6 shadow-sm flex flex-col items-center text-center transition-colors duration-300">
-        
-        {/* User Avatar */}
-        <Link to={profileUrl} className="hover:scale-102 transition-transform duration-200">
-          <Avatar
-            src={user.photo || user.profilePicture}
-            firstName={user.firstName}
-            lastName={user.lastName}
-            size="md"
-            className="ring-4 ring-accent/5"
-          />
-        </Link>
+    <aside className="w-[72px] flex-shrink-0 fixed left-0 top-[60px] h-[calc(100vh-60px)] flex flex-col items-center py-4 gap-1 border-r border-border bg-card transition-colors duration-300 z-40">
 
-        {/* User Name & Bio */}
-        <Link 
-          to={profileUrl}
-          className="mt-3.5 text-base font-bold text-primary hover:text-accent hover:underline transition-colors"
+      {navItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          title={item.label}
+          end={item.to === '/'}
+          className={({ isActive }) => `
+            w-12 h-12 rounded-[14px] flex items-center justify-center transition-all duration-200
+            ${isActive
+              ? 'bg-accent text-white shadow-md shadow-accent/30'
+              : 'text-secondary hover:bg-base hover:text-primary'
+            }
+          `}
         >
-          {user.firstName} {user.lastName}
-        </Link>
-        
-        <p className="mt-1.5 text-xs text-secondary line-clamp-2 px-1">
-          {user.bio || "No bio added yet. Tell people about yourself!"}
-        </p>
+          {item.icon}
+        </NavLink>
+      ))}
 
-        {/* Navigation Menu Links */}
-        <div className="w-full mt-6 pt-5 border-t border-border flex flex-col gap-1 text-left">
-          <NavLink
-            to="/"
-            className={({ isActive }) => `
-              px-4 py-2.5 rounded-[12px] text-sm font-semibold flex items-center gap-3 transition-colors
-              ${isActive 
-                ? 'bg-accent-light text-accent' 
-                : 'text-secondary hover:bg-base hover:text-primary'
-              }
-            `}
-          >
-            <Home size={16} />
-            Timeline
-          </NavLink>
+      {onCreatePost && (
+        <button
+          onClick={onCreatePost}
+          title="Create Post"
+          className="w-12 h-12 rounded-[14px] flex items-center justify-center bg-accent-light text-accent hover:bg-accent hover:text-white transition-all duration-200 mt-1 cursor-pointer active:scale-95"
+        >
+          <Plus size={22} />
+        </button>
+      )}
 
-          <NavLink
-            to="/people"
-            className={({ isActive }) => `
-              px-4 py-2.5 rounded-[12px] text-sm font-semibold flex items-center gap-3 transition-colors
-              ${isActive 
-                ? 'bg-accent-light text-accent' 
-                : 'text-secondary hover:bg-base hover:text-primary'
-              }
-            `}
-          >
-            <Users size={16} />
-            People
-          </NavLink>
+      <div className="flex-1" />
 
-          <NavLink
-            to="/requests"
-            className={({ isActive }) => `
-              px-4 py-2.5 rounded-[12px] text-sm font-semibold flex items-center gap-3 transition-colors
-              ${isActive 
-                ? 'bg-accent-light text-accent' 
-                : 'text-secondary hover:bg-base hover:text-primary'
-              }
-            `}
-          >
-            <UserPlus size={16} />
-            Friend Requests
-          </NavLink>
-        </div>
+      <button
+        onClick={toggleTheme}
+        title="Toggle Theme"
+        className="w-12 h-12 rounded-[14px] flex items-center justify-center text-secondary hover:bg-base hover:text-primary transition-all duration-200 cursor-pointer"
+      >
+        {theme === 'dark' ? <Sun size={20} className="text-warning" /> : <Moon size={20} />}
+      </button>
 
-        {/* Bottom "Create Post" Button */}
-        {onCreatePost && (
-          <Button
-            variant="primary"
-            size="md"
-            onClick={onCreatePost}
-            className="w-full mt-6 shadow-md shadow-accent/15 flex items-center justify-center gap-2"
-          >
-            <Plus size={16} />
-            Create Post
-          </Button>
-        )}
+      <Link
+        to={profileUrl}
+        title="My Profile"
+        className="w-12 h-12 rounded-[14px] flex items-center justify-center hover:bg-base transition-all duration-200"
+      >
+        <Avatar
+          src={user.photo || user.profilePicture}
+          firstName={user.firstName}
+          lastName={user.lastName}
+          size="sm"
+        />
+      </Link>
 
-      </div>
+      <button
+        onClick={handleLogout}
+        title="Sign Out"
+        className="w-12 h-12 rounded-[14px] flex items-center justify-center text-secondary hover:text-danger hover:bg-danger/10 transition-all duration-200 cursor-pointer"
+      >
+        <LogOut size={20} />
+      </button>
 
     </aside>
   )
