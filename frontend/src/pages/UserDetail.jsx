@@ -602,7 +602,7 @@ export const UserDetail = () => {
                   </p>
                 </div>
               ) : (
-                <AnimatedPostList posts={userPosts} />
+                <AnimatedPostList posts={userPosts} showDeleteOption={isOwnProfile} />
               )}
             </div>
           ) : (

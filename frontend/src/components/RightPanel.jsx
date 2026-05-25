@@ -23,9 +23,9 @@ const RightPanel = () => {
   })
 
   const { data: friends = [] } = useQuery({
-    queryKey: ['friendsList'],
-    queryFn: getFriendsList,
-    enabled: !!user,
+    queryKey: ['friendsList', currentUserId],
+    queryFn: () => getFriendsList(currentUserId),
+    enabled: !!user && !!currentUserId,
   })
 
   const sendRequestMutation = useMutation({

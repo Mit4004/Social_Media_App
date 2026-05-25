@@ -30,7 +30,8 @@ export const AnimatedPostList = ({
   enableArrowNavigation = true,
   className = '',
   displayScrollbar = true,
-  initialSelectedIndex = -1
+  initialSelectedIndex = -1,
+  showDeleteOption = false
 }) => {
   const listRef = useRef(null)
   const [selectedIndex, setSelectedIndex] = useState(initialSelectedIndex)
@@ -120,7 +121,7 @@ export const AnimatedPostList = ({
             index={index}
           >
             <div className={`post-item-card-wrapper ${selectedIndex === index ? 'selected-highlight' : ''}`}>
-              <PostCard post={post} />
+              <PostCard post={post} showDeleteOption={showDeleteOption} />
             </div>
           </AnimatedPostItem>
         ))}

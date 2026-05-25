@@ -1,9 +1,6 @@
 import React from 'react'
 
-/**
- * Pulse Skeleton Loader to display while data is loading.
- * Supports multiple pre-built mock styles: 'post', 'sidebar', 'list', 'generic'.
- */
+
 export const SkeletonLoader = ({
   type = 'generic', // 'post' | 'sidebar' | 'list' | 'generic'
   count = 1,

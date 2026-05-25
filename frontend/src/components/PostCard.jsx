@@ -12,7 +12,7 @@ import Button from './Button'
 import ConfirmModal from './ConfirmModal'
 
 // Component displaying a single post card with user information, text contents, media attachments, likes, and comments functionality
-export const PostCard = ({ post }) => {
+export const PostCard = ({ post, showDeleteOption = false }) => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [showComments, setShowComments] = useState(false)
@@ -32,7 +32,7 @@ export const PostCard = ({ post }) => {
   // Check if post belongs to the logged-in user
   const loggedInUserId = user?._id || user?.id
   const postAuthorId = post.user?._id || post.user?.id || post.user
-  const isOwnPost = postAuthorId && loggedInUserId && postAuthorId.toString() === loggedInUserId.toString()
+  const isOwnPost = showDeleteOption && postAuthorId && loggedInUserId && postAuthorId.toString() === loggedInUserId.toString()
 
   // Scope the liked_posts key to the logged-in user so different users don't share like state
   const likeKey = `liked_posts_${user?._id || user?.id}`

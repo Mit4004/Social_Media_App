@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
-import { NavLink, Link, useNavigate } from 'react-router-dom'
+import React from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Home, Users, UserPlus, Plus, LogOut, Sun, Moon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import Avatar from './Avatar'
+import GooeyNav from './GooeyNav'
 
 // Sidebar component that renders the main navigation items, create post trigger, theme toggle, and logout button
 export const Sidebar = ({ onCreatePost }) => {
@@ -30,23 +31,7 @@ export const Sidebar = ({ onCreatePost }) => {
   return (
     <aside className="w-[72px] flex-shrink-0 fixed left-0 top-[60px] h-[calc(100vh-60px)] flex flex-col items-center py-4 gap-1 border-r border-border bg-card transition-colors duration-300 z-40">
 
-      {navItems.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          title={item.label}
-          end={item.to === '/'}
-          className={({ isActive }) => `
-            w-12 h-12 rounded-[14px] flex items-center justify-center transition-all duration-200
-            ${isActive
-              ? 'bg-accent text-white shadow-md shadow-accent/30'
-              : 'text-secondary hover:bg-base hover:text-primary'
-            }
-          `}
-        >
-          {item.icon}
-        </NavLink>
-      ))}
+      <GooeyNav items={navItems} />
 
       {onCreatePost && (
         <button
