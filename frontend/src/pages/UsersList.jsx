@@ -296,7 +296,7 @@ export const UsersList = () => {
                   </thead>
                   <tbody className="divide-y divide-border/60 text-xs text-primary">
                     {activeUsers.map((u) => {
-                      const isSelf = u._id === currentUser?._id
+                      const isSelf = u._id && currentUser && u._id.toString() === (currentUser._id || currentUser.id || '').toString()
                       const isFriend = myFriendsList.some((f) => f._id === u._id)
                       
                       return (

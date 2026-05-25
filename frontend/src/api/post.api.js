@@ -6,7 +6,11 @@ import API from './axios'
  * @returns {Promise<Object>} - Created post document
  */
 export const createPost = async (data) => {
-  const response = await API.post('/posts', data)
+  const response = await API.post('/posts', data, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
   return response.data
 }
 

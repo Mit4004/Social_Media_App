@@ -37,15 +37,14 @@ const profileFileFilter = (req, file, cb) => {
   }
 }
 
-// Filters post media uploads to ensure they are allowed image or video types
+// Filters post media uploads to ensure they are allowed image types only
 const postFileFilter = (req, file, cb) => {
   const isImage = ALLOWED_IMAGE_TYPES.includes(file.mimetype)
-  const isVideo = ALLOWED_VIDEO_TYPES.includes(file.mimetype)
 
-  if (isImage || isVideo) {
+  if (isImage) {
     cb(null, true)
   } else {
-    cb(new Error('Only images (JPEG, PNG, WEBP) and videos (MP4, MOV, AVI) are allowed'), false)
+    cb(new Error('Only JPEG, PNG, and WEBP images are allowed for post media'), false)
   }
 }
 

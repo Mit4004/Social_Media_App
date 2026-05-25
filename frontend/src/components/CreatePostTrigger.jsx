@@ -1,7 +1,7 @@
 import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useAuth } from '../context/AuthContext'
 import { createPost } from '../api/post.api'
@@ -14,6 +14,13 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
   const queryClient = useQueryClient()
   const [isOpen, setIsOpen] = useState(isOpenInitially)
   const [content, setContent] = useState('')
+  const [selectedFiles, setSelectedFiles] = useState([])
+  const [filePreviews, setFilePreviews] = useState([])
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef(null)
+  const dragCounter = useRef(0)
+
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 
   useImperativeHandle(ref, () => ({
     open: () => setIsOpen(true),
@@ -25,7 +32,12 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
     onSuccess: () => {
       toast.success('Post published!')
       setContent('')
+      filePreviews.forEach(url => URL.revokeObjectURL(url))
+      setSelectedFiles([])
+      setFilePreviews([])
       setIsOpen(false)
+      setIsDragging(false)
+      dragCounter.current = 0
       queryClient.invalidateQueries({ queryKey: ['timelinePosts'] })
     },
     onError: (error) => {
@@ -38,18 +50,129 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
     if (postMutation.isPending) return
     setIsOpen(false)
     setContent('')
+    filePreviews.forEach(url => URL.revokeObjectURL(url))
+    setSelectedFiles([])
+    setFilePreviews([])
+    setIsDragging(false)
+    dragCounter.current = 0
   }
 
-  // Submits the new post content to the server using react-query mutation
+  // Handle selected files change and local validations
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files)
+    if (!files.length) return
+
+    if (selectedFiles.length + files.length > 5) {
+      toast.error('You can upload up to 5 files maximum.')
+      return
+    }
+
+    const newFiles = []
+    const newPreviews = []
+
+    for (const file of files) {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        toast.error(`File "${file.name}" is not an allowed image type. Only JPEG, PNG, and WEBP are permitted.`)
+        continue
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error(`File "${file.name}" exceeds the 50MB size limit.`)
+        continue
+      }
+      newFiles.push(file)
+      newPreviews.push(URL.createObjectURL(file))
+    }
+
+    setSelectedFiles((prev) => [...prev, ...newFiles])
+    setFilePreviews((prev) => [...prev, ...newPreviews])
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Drag and drop event handlers
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDragEnter = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current++
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true)
+    }
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current--
+    if (dragCounter.current === 0) {
+      setIsDragging(false)
+    }
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    dragCounter.current = 0
+
+    if (postMutation.isPending) return
+
+    const files = Array.from(e.dataTransfer.files)
+    if (!files.length) return
+
+    if (selectedFiles.length + files.length > 5) {
+      toast.error('You can upload up to 5 files maximum.')
+      return
+    }
+
+    const newFiles = []
+    const newPreviews = []
+
+    for (const file of files) {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        toast.error(`File "${file.name}" is not an allowed image type. Only JPEG, PNG, and WEBP are permitted.`)
+        continue
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error(`File "${file.name}" exceeds the 50MB size limit.`)
+        continue
+      }
+      newFiles.push(file)
+      newPreviews.push(URL.createObjectURL(file))
+    }
+
+    if (newFiles.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...newFiles])
+      setFilePreviews((prev) => [...prev, ...newPreviews])
+    }
+  }
+
+  // Removes a selected file from the preview listing
+  const removeFile = (idx) => {
+    URL.revokeObjectURL(filePreviews[idx])
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))
+    setFilePreviews((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  // Submits the new post content and files to the server using react-query mutation
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!content.trim()) {
-      toast.warning('Please write something first.')
+    if (!content.trim() && selectedFiles.length === 0) {
+      toast.warning('Please write something or attach media first.')
       return
     }
     const formData = new FormData()
     formData.append('content', content)
     formData.append('visibility', 'public')
+    selectedFiles.forEach((file) => {
+      formData.append('files', file)
+    })
     postMutation.mutate(formData)
   }
 
@@ -89,7 +212,14 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-y-auto">
+            <form
+              onSubmit={handleSubmit}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className="flex-1 flex flex-col overflow-y-auto relative"
+            >
               {/* User info */}
               <div className="px-6 py-4 flex items-center gap-3">
                 <Avatar
@@ -108,16 +238,62 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
                 </div>
               </div>
 
-              {/* Text area */}
-              <div className="px-6 pb-4 flex-1 min-h-[140px]">
+              {/* Text area & Previews */}
+              <div className="px-6 pb-4 flex-1 min-h-[160px] flex flex-col">
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder={`What's on your mind, ${user.firstName}?`}
-                  className="w-full h-full min-h-[120px] text-sm text-primary placeholder:text-muted/60 bg-transparent resize-none outline-none border-none py-1"
+                  className="w-full flex-1 min-h-[100px] text-sm text-primary placeholder:text-muted/60 bg-transparent resize-none outline-none border-none py-1"
                   maxLength={1000}
                   disabled={postMutation.isPending}
                 />
+
+                {filePreviews.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-3 max-h-[180px] overflow-y-auto pr-1 scrollbar">
+                    {selectedFiles.map((file, idx) => {
+                      const url = filePreviews[idx]
+                      return (
+                        <div key={idx} className="relative aspect-square rounded-[12px] overflow-hidden border border-border bg-base/30 flex items-center justify-center group">
+                          <img src={url} alt={file.name} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeFile(idx)}
+                            className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 text-white hover:bg-black/80 flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Invisible file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                multiple
+                accept="image/jpeg,image/png,image/webp,image/jpg"
+                className="hidden"
+              />
+
+              {/* Media Toolbar */}
+              <div className="px-6 py-3 border-t border-border/40 flex items-center justify-between bg-card/50">
+                <span className="text-[11px] font-bold text-secondary">Add to your post</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={postMutation.isPending}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-accent bg-accent/10 hover:bg-accent/15 transition-colors cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Photo/Video"
+                  >
+                    <ImageIcon size={15} />
+                  </button>
+                </div>
               </div>
 
               {/* Submit */}
@@ -127,11 +303,22 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
                   variant="primary"
                   className="w-full shadow-lg shadow-accent/10"
                   isLoading={postMutation.isPending}
-                  disabled={!content.trim()}
+                  disabled={!content.trim() && selectedFiles.length === 0}
                 >
                   Post
                 </Button>
               </div>
+
+              {/* Drag overlay visual indicator */}
+              {isDragging && (
+                <div className="absolute inset-0 z-50 bg-accent/10 border-2 border-dashed border-accent m-4 rounded-[12px] flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-150">
+                  <div className="p-4 rounded-full bg-accent/20 text-accent mb-2">
+                    <ImageIcon size={32} className="animate-bounce" />
+                  </div>
+                  <span className="text-sm font-bold text-accent">Drop images here</span>
+                  <span className="text-xs text-secondary mt-1">Up to 5 images (JPEG, PNG, WEBP)</span>
+                </div>
+              )}
             </form>
 
           </motion.div>

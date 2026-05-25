@@ -30,8 +30,9 @@ export const PostCard = ({ post }) => {
   })
 
   // Check if post belongs to the logged-in user
-  const postAuthorId = post.user?._id || post.user
-  const isOwnPost = postAuthorId === user?._id
+  const loggedInUserId = user?._id || user?.id
+  const postAuthorId = post.user?._id || post.user?.id || post.user
+  const isOwnPost = postAuthorId && loggedInUserId && postAuthorId.toString() === loggedInUserId.toString()
 
   // Scope the liked_posts key to the logged-in user so different users don't share like state
   const likeKey = `liked_posts_${user?._id || user?.id}`
@@ -105,6 +106,7 @@ export const PostCard = ({ post }) => {
     onSuccess: () => {
       toast.success('Post deleted successfully.')
       queryClient.invalidateQueries({ queryKey: ['timelinePosts'] })
+      queryClient.invalidateQueries({ queryKey: ['userPosts', postAuthorId] })
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || 'Failed to delete post.')
@@ -135,6 +137,7 @@ export const PostCard = ({ post }) => {
       refetchComments()
       // Invalidate timeline so main feed commentsCount updates
       queryClient.invalidateQueries({ queryKey: ['timelinePosts'] })
+      queryClient.invalidateQueries({ queryKey: ['userPosts', postAuthorId] })
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || 'Failed to post comment.')
@@ -156,6 +159,7 @@ export const PostCard = ({ post }) => {
       refetchComments()
       // Invalidate timeline so main feed commentsCount updates
       queryClient.invalidateQueries({ queryKey: ['timelinePosts'] })
+      queryClient.invalidateQueries({ queryKey: ['userPosts', postAuthorId] })
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || 'Failed to delete comment.')
@@ -331,8 +335,8 @@ export const PostCard = ({ post }) => {
           ) : (
             <div className="space-y-3.5 max-h-[250px] overflow-y-auto pr-1 scrollbar">
               {comments.map((comment) => {
-                const commentAuthorId = comment.user?._id || comment.user
-                const isOwnComment = commentAuthorId === user?._id
+                const commentAuthorId = comment.user?._id || comment.user?.id || comment.user
+                const isOwnComment = commentAuthorId && loggedInUserId && commentAuthorId.toString() === loggedInUserId.toString()
 
                 return (
                   <div key={comment._id} className="flex items-start gap-2.5 text-xs group">
