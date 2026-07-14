@@ -57,7 +57,8 @@ export const PostCard = ({ post, showDeleteOption = false }) => {
   const getMediaUrl = (url) => {
     if (!url) return ''
     if (url.startsWith('http://') || url.startsWith('https://')) return url
-    return `http://localhost:5000${url.startsWith('/') ? '' : '/'}${url}`
+    const baseUrl = import.meta.env.VITE_API_URL || ''
+    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
   }
 
   // Like Mutation

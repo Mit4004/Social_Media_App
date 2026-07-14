@@ -2,6 +2,7 @@ const Post = require('../models/Post')
 const Friend = require('../models/Friend')
 const Like = require('../models/Like')
 const { z } = require('zod')
+const { uploadToCloudinary } = require('../config/cloudinary')
 
 const createPostSchema = z.object({
   content:    z.string().optional().default(''),
@@ -13,18 +14,38 @@ const createPost = async (req, res) => {
   try {
     const parsed = createPostSchema.safeParse(req.body)
     if (!parsed.success) {
-      return res.status(400).json({ errors: parsed.error.errors })
+      return res.status(400).json({
+        message: parsed.error.errors[0]?.message || 'Validation failed',
+        errors: parsed.error.errors
+      })
     }
 
     const { content, visibility } = parsed.data
 
-    const media = req.files
-      ? req.files.map((file) => ({
-          url: `/uploads/posts/${file.filename}`,
-          storageType: 'local',
-          fileType: file.mimetype.startsWith('video/') ? 'video' : 'image',
-        }))
-      : []
+    const media = []
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const isVideo = file.mimetype.startsWith('video/')
+        let fileUrl = `/uploads/posts/${file.filename}`
+        let storageType = 'local'
+
+        try {
+          const cloudinaryResult = await uploadToCloudinary(file.path, 'posts')
+          if (cloudinaryResult) {
+            fileUrl = cloudinaryResult.secure_url
+            storageType = 'cloudinary'
+          }
+        } catch (err) {
+          console.error('Cloudinary post file upload error in createPost, using local fallback:', err)
+        }
+
+        media.push({
+          url:         fileUrl,
+          storageType: storageType,
+          fileType:    isVideo ? 'video' : 'image',
+        })
+      }
+    }
 
     if (!content && media.length === 0) {
       return res.status(400).json({ message: 'Post must have content or at least one file' })

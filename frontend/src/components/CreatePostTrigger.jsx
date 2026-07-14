@@ -17,6 +17,7 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
   const [selectedFiles, setSelectedFiles] = useState([])
   const [filePreviews, setFilePreviews] = useState([])
   const [isDragging, setIsDragging] = useState(false)
+  const [showMediaUpload, setShowMediaUpload] = useState(false)
   const fileInputRef = useRef(null)
   const dragCounter = useRef(0)
 
@@ -37,6 +38,7 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
       setFilePreviews([])
       setIsOpen(false)
       setIsDragging(false)
+      setShowMediaUpload(false)
       dragCounter.current = 0
       queryClient.invalidateQueries({ queryKey: ['timelinePosts'] })
     },
@@ -54,6 +56,7 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
     setSelectedFiles([])
     setFilePreviews([])
     setIsDragging(false)
+    setShowMediaUpload(false)
     dragCounter.current = 0
   }
 
@@ -85,6 +88,7 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
 
     setSelectedFiles((prev) => [...prev, ...newFiles])
     setFilePreviews((prev) => [...prev, ...newPreviews])
+    setShowMediaUpload(true)
 
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -150,6 +154,7 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
     if (newFiles.length > 0) {
       setSelectedFiles((prev) => [...prev, ...newFiles])
       setFilePreviews((prev) => [...prev, ...newPreviews])
+      setShowMediaUpload(true)
     }
   }
 
@@ -181,7 +186,13 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           
           {/* Dark Backdrop Overlay */}
           <motion.div
@@ -199,6 +210,7 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', duration: 0.4 }}
             className="w-full max-w-[520px] bg-card border border-border rounded-[16px] shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="h-[60px] px-6 border-b border-border flex items-center justify-between">
@@ -214,10 +226,6 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
 
             <form
               onSubmit={handleSubmit}
-              onDragEnter={handleDragEnter}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
               className="flex-1 flex flex-col overflow-y-auto relative"
             >
               {/* User info */}
@@ -249,23 +257,57 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
                   disabled={postMutation.isPending}
                 />
 
-                {filePreviews.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-3 max-h-[180px] overflow-y-auto pr-1 scrollbar">
-                    {selectedFiles.map((file, idx) => {
-                      const url = filePreviews[idx]
-                      return (
-                        <div key={idx} className="relative aspect-square rounded-[12px] overflow-hidden border border-border bg-base/30 flex items-center justify-center group">
-                          <img src={url} alt={file.name} className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => removeFile(idx)}
-                            className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 text-white hover:bg-black/80 flex items-center justify-center transition-colors cursor-pointer"
-                          >
-                            <X size={10} />
-                          </button>
+                {(showMediaUpload || selectedFiles.length > 0) && (
+                  <div 
+                    onClick={() => {
+                      if (selectedFiles.length === 0) {
+                        fileInputRef.current?.click()
+                      }
+                    }}
+                    className={`mt-3 border-2 border-dashed rounded-[12px] p-3 flex flex-col items-center justify-center transition-all duration-200 ${
+                      selectedFiles.length === 0 ? 'cursor-pointer hover:bg-base/40 border-border hover:border-accent' : 'border-border bg-base/10'
+                    }`}
+                  >
+                    {selectedFiles.length === 0 ? (
+                      <div className="flex flex-col items-center py-4 text-center">
+                        <ImageIcon size={28} className="text-secondary mb-2" />
+                        <span className="text-xs font-bold text-primary">
+                          Drag & drop images here, or <span className="text-accent hover:underline">browse</span>
+                        </span>
+                        <span className="text-[10px] text-secondary mt-1">
+                          JPEG, PNG, WEBP up to 50MB (max 5 files)
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                        <div className="grid grid-cols-3 gap-2 max-h-[180px] overflow-y-auto pr-1 scrollbar">
+                          {selectedFiles.map((file, idx) => {
+                            const url = filePreviews[idx]
+                            return (
+                              <div key={idx} className="relative aspect-square rounded-[12px] overflow-hidden border border-border bg-card flex items-center justify-center group">
+                                <img src={url} alt={file.name} className="w-full h-full object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => removeFile(idx)}
+                                  className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 text-white hover:bg-black/80 flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                            )
+                          })}
+                          {selectedFiles.length < 5 && (
+                            <div 
+                              onClick={() => fileInputRef.current?.click()}
+                              className="aspect-square rounded-[12px] border border-dashed border-border hover:border-accent bg-card hover:bg-base flex flex-col items-center justify-center cursor-pointer transition-colors"
+                            >
+                              <ImageIcon size={18} className="text-secondary mb-1" />
+                              <span className="text-[10px] font-bold text-secondary">Add more</span>
+                            </div>
+                          )}
                         </div>
-                      )
-                    })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -286,9 +328,15 @@ export const CreatePostTrigger = forwardRef(({ isOpenInitially = false }, ref) =
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => {
+                      setShowMediaUpload(prev => !prev)
+                    }}
                     disabled={postMutation.isPending}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-accent bg-accent/10 hover:bg-accent/15 transition-colors cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      showMediaUpload || selectedFiles.length > 0
+                        ? 'text-accent bg-accent/20'
+                        : 'text-secondary hover:text-primary hover:bg-base'
+                    }`}
                     title="Photo/Video"
                   >
                     <ImageIcon size={15} />

@@ -7,7 +7,7 @@ const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName:  z.string().min(1, 'Last name is required'),
   email:     z.string().email('Invalid email'),
-  mobile:    z.string().min(10, 'Mobile number is required'),
+  mobile:    z.string().regex(/^[0-9+() -]{7,15}$/, 'Invalid mobile number (must be 7-15 digits)'),
   password:  z.string().min(6, 'Password must be at least 6 characters'),
 })
 
@@ -16,7 +16,10 @@ const register = async (req, res) => {
   try {
     const parsed = registerSchema.safeParse(req.body)
     if (!parsed.success) {
-      return res.status(400).json({ errors: parsed.error.errors })
+      return res.status(400).json({
+        message: parsed.error.errors[0]?.message || 'Validation failed',
+        errors: parsed.error.errors
+      })
     }
 
     const { firstName, lastName, email, mobile, password } = parsed.data
@@ -60,7 +63,10 @@ const login = async (req, res) => {
   try {
     const parsed = loginSchema.safeParse(req.body)
     if (!parsed.success) {
-      return res.status(400).json({ errors: parsed.error.errors })
+      return res.status(400).json({
+        message: parsed.error.errors[0]?.message || 'Validation failed',
+        errors: parsed.error.errors
+      })
     }
 
     const { email, password } = parsed.data

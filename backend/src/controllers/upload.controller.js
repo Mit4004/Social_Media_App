@@ -1,5 +1,6 @@
 const User = require('../models/User')
 const Post = require('../models/Post')
+const { uploadToCloudinary } = require('../config/cloudinary')
 
 // Uploads a new profile photo for the authenticated user
 const uploadProfilePhoto = async (req, res) => {
@@ -8,7 +9,19 @@ const uploadProfilePhoto = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' })
     }
 
-    const photoUrl = `/uploads/profiles/${req.file.filename}`
+    let photoUrl = `/uploads/profiles/${req.file.filename}`
+    let storageType = 'local'
+
+    // Attempt to upload to Cloudinary
+    try {
+      const cloudinaryResult = await uploadToCloudinary(req.file.path, 'profiles')
+      if (cloudinaryResult) {
+        photoUrl = cloudinaryResult.secure_url
+        storageType = 'cloudinary'
+      }
+    } catch (err) {
+      console.error('Cloudinary profile photo upload error, using local fallback:', err)
+    }
 
     const user = await User.findByIdAndUpdate(
       req.userId,
@@ -16,7 +29,7 @@ const uploadProfilePhoto = async (req, res) => {
         $set: {
           profilePhoto: {
             url:         photoUrl,
-            storageType: 'local',
+            storageType: storageType,
           },
         },
       },
@@ -39,14 +52,29 @@ const uploadPostFiles = async (req, res) => {
       return res.status(400).json({ message: 'No files uploaded' })
     }
 
-    const files = req.files.map((file) => {
+    const files = []
+    for (const file of req.files) {
       const isVideo = file.mimetype.startsWith('video/')
-      return {
-        url:         `/uploads/posts/${file.filename}`,
-        storageType: 'local',
-        fileType:    isVideo ? 'video' : 'image',
+      let fileUrl = `/uploads/posts/${file.filename}`
+      let storageType = 'local'
+
+      // Attempt to upload to Cloudinary
+      try {
+        const cloudinaryResult = await uploadToCloudinary(file.path, 'posts')
+        if (cloudinaryResult) {
+          fileUrl = cloudinaryResult.secure_url
+          storageType = 'cloudinary'
+        }
+      } catch (err) {
+        console.error('Cloudinary post file upload error, using local fallback:', err)
       }
-    })
+
+      files.push({
+        url:         fileUrl,
+        storageType: storageType,
+        fileType:    isVideo ? 'video' : 'image',
+      })
+    }
 
     res.status(200).json({
       message: 'Files uploaded successfully',
@@ -57,4 +85,4 @@ const uploadPostFiles = async (req, res) => {
   }
 }
 
-module.exports = { uploadProfilePhoto, uploadPostFiles }
+module.exports = { uploadProfilePhoto, uploadPostFiles }

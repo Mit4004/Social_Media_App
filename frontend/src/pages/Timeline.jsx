@@ -35,10 +35,13 @@ export const Timeline = () => {
         </div>
 
         {/* Center + Right wrapper */}
-        <div className="flex-1 flex justify-center px-4 py-6 gap-8 max-w-[960px] mx-auto w-full">
+        <div className="flex-1 flex justify-center px-4 py-6 w-full">
+
+          {/* Left spacer column to balance RightPanel and keep timeline centered */}
+          <div className="hidden xl:block w-[280px] flex-shrink-0" />
 
           {/* Center: Feed */}
-          <div className="flex-1 max-w-[500px] flex flex-col gap-4">
+          <div className="flex-1 max-w-[500px] mx-auto flex flex-col gap-4">
             <CreatePostTrigger ref={createPostRef} />
 
             {isLoading ? (
@@ -74,7 +77,7 @@ export const Timeline = () => {
           </div>
 
           {/* Right: Suggestions Panel */}
-          <div className="hidden lg:flex">
+          <div className="hidden xl:flex w-[280px] flex-shrink-0">
             <RightPanel />
           </div>
 

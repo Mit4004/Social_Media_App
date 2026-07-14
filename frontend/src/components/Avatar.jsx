@@ -15,7 +15,7 @@ export const Avatar = ({
   const [imageError, setImageError] = useState(false)
 
   // Reset image error if src changes
-  useEffect(() => {
+  useEffect(() => { 
     setImageError(false)
   }, [src])
 
@@ -39,7 +39,8 @@ export const Avatar = ({
 
     if (!url || typeof url !== 'string') return null
     if (url.startsWith('http://') || url.startsWith('https://')) return url
-    return `http://localhost:5000${url.startsWith('/') ? '' : '/'}${url}`
+    const baseUrl = import.meta.env.VITE_API_URL || ''
+    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
   }
 
   const imageUrl = getFullImageUrl(src)

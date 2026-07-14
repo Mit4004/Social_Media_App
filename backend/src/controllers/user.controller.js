@@ -106,7 +106,10 @@ const updateUser = async (req, res) => {
 
     const parsed = updateUserSchema.safeParse(req.body)
     if (!parsed.success) {
-      return res.status(400).json({ errors: parsed.error.errors })
+      return res.status(400).json({
+        message: parsed.error.errors[0]?.message || 'Validation failed',
+        errors: parsed.error.errors
+      })
     }
 
     const updated = await User.findByIdAndUpdate(
